@@ -1,0 +1,24 @@
+# permissions for end users to edit apphooks.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: apphook-editor-role
+rules:
+- apiGroups:
+  - storage.jibudata.com
+  resources:
+  - apphooks
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - storage.jibudata.com
+  resources:
+  - apphooks/status
+  verbs:
+  - get
