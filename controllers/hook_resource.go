@@ -24,7 +24,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 const (
@@ -80,6 +79,10 @@ func InitHookDeployment(
 									Value: deploymentName,
 								},
 								{
+									Name:  "NAMESPACE",
+									Value: instance.Namespace,
+								},
+								{
 									Name: "USERNAME",
 									ValueFrom: &corev1.EnvVarSource{
 										SecretKeyRef: &corev1.SecretKeySelector{
@@ -124,33 +127,9 @@ func InitHookDeployment(
 									corev1.ResourceMemory: resource.MustParse("1Gi"),
 								},
 							},
-
-							LivenessProbe: &corev1.Probe{
-								Handler: corev1.Handler{
-									HTTPGet: &corev1.HTTPGetAction{
-										Path: "/",
-										Port: intstr.FromInt(9100),
-									}},
-								InitialDelaySeconds: 15,
-								TimeoutSeconds:      1,
-								PeriodSeconds:       10,
-								SuccessThreshold:    1,
-								FailureThreshold:    3,
-							},
-							ReadinessProbe: &corev1.Probe{
-								Handler: corev1.Handler{
-									HTTPGet: &corev1.HTTPGetAction{
-										Path: "/",
-										Port: intstr.FromInt(9100),
-									}},
-								InitialDelaySeconds: 5,
-								TimeoutSeconds:      1,
-								PeriodSeconds:       10,
-								SuccessThreshold:    1,
-								FailureThreshold:    3,
-							},
 						},
 					},
+					ServiceAccountName: "app-hook-operator-controller-manager",
 				},
 			},
 		},

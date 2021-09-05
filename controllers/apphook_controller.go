@@ -132,20 +132,13 @@ func (r *AppHookReconciler) reconcile(instance *storagev1alpha1.AppHook) (ctrl.R
 		return reconcile.Result{}, nil
 	}
 
-	// install
+	// install and update
 	log.Log.Info("step: ensureHookDeployment")
 	if err = r.ensureHookDeployment(instance); err != nil {
 		message := fmt.Sprintf("failed to ensureHookDeployment: %s", instance.Name)
 		log.Log.Error(err, message)
 
 		return reconcile.Result{}, err
-	}
-
-	instance.Status.Phase = storagev1alpha1.HookCreated
-	statusError := r.Client.Status().Update(context.TODO(), instance)
-	if statusError != nil {
-		log.Log.Error(statusError, fmt.Sprintf("Failed to update status of %s", instance.Name))
-		return reconcile.Result{}, statusError
 	}
 
 	return reconcile.Result{}, nil
@@ -201,7 +194,17 @@ func (r *AppHookReconciler) ensureHookDeployment(instance *storagev1alpha1.AppHo
 	if err != nil {
 		if errors.IsNotFound(err) {
 			log.Log.Info(fmt.Sprintf("create Hook deployment %s", instance.Name))
-			return r.Client.Create(context.TODO(), expectedDeployment)
+			err = r.Client.Create(context.TODO(), expectedDeployment)
+			if err != nil {
+				return err
+			}
+			instance.Status.Phase = storagev1alpha1.HookCreated
+			statusError := r.Client.Status().Update(context.TODO(), instance)
+			if statusError != nil {
+				log.Log.Error(statusError, fmt.Sprintf("Failed to update status of %s", instance.Name))
+				return statusError
+			}
+			return nil
 		}
 
 		log.Log.Error(err, fmt.Sprintf("failed to create Hook deployment %s", instance.Name))
