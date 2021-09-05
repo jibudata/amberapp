@@ -1,0 +1,12 @@
+apiVersion: storage.jibudata.com/v1alpha1
+kind: AppHook
+metadata:
+  name: apphook-sample
+  namespace: app-hook-operator-system
+spec:
+  name: apphook-sample
+  appProvider: mysql
+  endPoint: "test123"
+  secret: 
+    name: "apphook-sample-secret"
+    namespace: "app-hook-operator-system"

@@ -1,0 +1,110 @@
+
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.6.1
+  creationTimestamp: null
+  name: apphooks.storage.jibudata.com
+spec:
+  group: storage.jibudata.com
+  names:
+    kind: AppHook
+    listKind: AppHookList
+    plural: apphooks
+    singular: apphook
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    - jsonPath: .metadata.creationTimestamp
+      name: Created At
+      type: string
+    - description: Phase
+      jsonPath: .status.phase
+      name: Phase
+      type: string
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: AppHook is the Schema for the apphooks API
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: AppHookSpec defines the desired state of AppHook
+            properties:
+              appProvider:
+                description: AppProvider is the application identifier for different
+                  vendors, such as mysql
+                type: string
+              endPoint:
+                description: Endpoint to connect the applicatio service
+                type: string
+              name:
+                description: Name is a job for backup/restore/migration
+                type: string
+              operationType:
+                description: OperationType is the operation executed in application
+                enum:
+                - quiesce
+                - unquiesce
+                type: string
+              params:
+                additionalProperties:
+                  type: string
+                description: Other options
+                type: object
+              secret:
+                description: Secret to access the application
+                properties:
+                  name:
+                    description: Name is unique within a namespace to reference a
+                      secret resource.
+                    type: string
+                  namespace:
+                    description: Namespace defines the space within which the secret
+                      name must be unique.
+                    type: string
+                type: object
+              timeoutSeconds:
+                description: TimeoutSeconds is the timeout of operation
+                format: int32
+                minimum: 0
+                type: integer
+            required:
+            - name
+            type: object
+          status:
+            description: AppHookStatus defines the observed state of AppHook
+            properties:
+              phase:
+                description: 'INSERT ADDITIONAL STATUS FIELD - define observed state
+                  of cluster Important: Run "make" to regenerate code after modifying
+                  this file'
+                type: string
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []

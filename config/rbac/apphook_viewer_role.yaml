@@ -1,0 +1,20 @@
+# permissions for end users to view apphooks.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: apphook-viewer-role
+rules:
+- apiGroups:
+  - storage.jibudata.com
+  resources:
+  - apphooks
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - storage.jibudata.com
+  resources:
+  - apphooks/status
+  verbs:
+  - get
