@@ -79,6 +79,7 @@ type AppHookList struct {
 	Items           []AppHook `json:"items"`
 }
 
+// operation type
 const (
 	// quiesce operation
 	QUIESCE = "quiesce"
@@ -86,9 +87,11 @@ const (
 	UNQUIESCE = "unquiesce"
 )
 
+// phase
 const (
-	HookCreated = "Created"
-	HookReady   = "Ready"
+	HookCreated  = "Created"
+	HookReady    = "Ready"
+	HookQUIESCED = "Quiesced"
 )
 
 func init() {
