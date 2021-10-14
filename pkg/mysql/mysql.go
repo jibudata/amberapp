@@ -29,12 +29,12 @@ func (m *MYSQL) Connect(appConfig appconfig.Config) error {
 	return nil
 }
 
-func (m *MYSQL) Quiesce() error {
+func (m *MYSQL) Quiesce(appConfig appconfig.Config) error {
 	log.Log.Info("mysql Quiesce")
 	return nil
 }
 
-func (m *MYSQL) Unquiesce() error {
+func (m *MYSQL) Unquiesce(appConfig appconfig.Config) error {
 	log.Log.Info("mysql Unquiesce")
 	return nil
 }

@@ -5,8 +5,10 @@ metadata:
   namespace: app-hook-operator-system
 spec:
   name: apphook-sample
-  appProvider: mysql
-  endPoint: "test123"
+  appProvider: postgres
+  endPoint: "postgres.postgres-ns"
+  databases:
+    - postgresdb
   secret: 
     name: "apphook-sample-secret"
     namespace: "app-hook-operator-system"
