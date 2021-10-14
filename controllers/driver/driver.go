@@ -25,8 +25,8 @@ const (
 
 type Database interface {
 	Connect(appconfig.Config) error
-	Quiesce() error
-	Unquiesce() error
+	Quiesce(appconfig.Config) error
+	Unquiesce(appconfig.Config) error
 }
 
 type DriverManager struct {
@@ -38,7 +38,7 @@ type DriverManager struct {
 	appConfig appconfig.Config
 }
 
-func NewManager(k8sclient client.Client, instance *storagev1alpha1.AppHook, secret *corev1.Secret) (*DriverManager, error) {
+func NewManager(k8sclient client.Client, instance *storagev1alpha1.AppHook, secret *corev1.Secret) (DriverManager, error) {
 	var CacheManager DriverManager
 	var err error
 	CacheManager.Client = k8sclient
@@ -56,13 +56,15 @@ func NewManager(k8sclient client.Client, instance *storagev1alpha1.AppHook, secr
 		CacheManager.NotReady()
 		err = fmt.Errorf("provider %s is not supported", instance.Spec.AppProvider)
 		log.Log.Error(err, "err")
-		return &CacheManager, err
+		return CacheManager, err
 	}
 
 	CacheManager.appConfig = appconfig.Config{
+		Name:      instance.Name,
 		Host:      instance.Spec.EndPoint,
-		Username:  secret.StringData["username"],
-		Password:  secret.StringData["password"],
+		Databases: instance.Spec.Databases,
+		Username:  string(secret.Data["username"]),
+		Password:  string(secret.Data["password"]),
 		Provider:  instance.Spec.AppProvider,
 		Operation: instance.Spec.OperationType,
 	}
@@ -77,7 +79,7 @@ func NewManager(k8sclient client.Client, instance *storagev1alpha1.AppHook, secr
 
 		CacheManager.Ready()
 	*/
-	return &CacheManager, nil
+	return CacheManager, nil
 }
 
 func (d *DriverManager) Ready() {
@@ -93,9 +95,9 @@ func (d *DriverManager) DBConnect() error {
 }
 
 func (d *DriverManager) DBQuiesce() error {
-	return d.db.Quiesce()
+	return d.db.Quiesce(d.appConfig)
 }
 
 func (d *DriverManager) DBUnquiesce() error {
-	return d.db.Unquiesce()
+	return d.db.Unquiesce(d.appConfig)
 }

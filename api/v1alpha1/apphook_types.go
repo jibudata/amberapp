@@ -35,6 +35,8 @@ type AppHookSpec struct {
 	AppProvider string `json:"appProvider,omitempty"`
 	// Endpoint to connect the applicatio service
 	EndPoint string `json:"endPoint,omitempty"`
+	// Databases
+	Databases []string `json:"databases,omitempty"`
 	// OperationType is the operation executed in application
 	//+kubebuilder:validation:Enum=quiesce;unquiesce
 	OperationType string `json:"operationType,omitempty"`

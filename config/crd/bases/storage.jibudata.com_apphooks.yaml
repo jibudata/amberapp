@@ -51,6 +51,11 @@ spec:
                 description: AppProvider is the application identifier for different
                   vendors, such as mysql
                 type: string
+              databases:
+                description: Databases
+                items:
+                  type: string
+                type: array
               endPoint:
                 description: Endpoint to connect the applicatio service
                 type: string

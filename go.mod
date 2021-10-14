@@ -11,4 +11,5 @@ require (
 	k8s.io/client-go v0.21.2
 	k8s.io/klog/v2 v2.10.0 // indirect
 	sigs.k8s.io/controller-runtime v0.9.2
+	github.com/lib/pq v1.10.3
 )

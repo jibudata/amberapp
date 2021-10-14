@@ -15,12 +15,12 @@ func (mg *MG) Connect(appConfig appconfig.Config) error {
 	return nil
 }
 
-func (mg *MG) Quiesce() error {
+func (mg *MG) Quiesce(appConfig appconfig.Config) error {
 	log.Log.Info("mongodb Quiesce")
 	return nil
 }
 
-func (mg *MG) Unquiesce() error {
+func (mg *MG) Unquiesce(appConfig appconfig.Config) error {
 	log.Log.Info("mongodb Unquiesce")
 	return nil
 }
