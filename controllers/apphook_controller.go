@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"os"
 	"reflect"
+	"strings"
 
 	"github.com/jibudata/app-hook-operator/controllers/util"
 	appsv1 "k8s.io/api/apps/v1"
@@ -34,6 +35,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	storagev1alpha1 "github.com/jibudata/app-hook-operator/api/v1alpha1"
+	drivermanager "github.com/jibudata/app-hook-operator/controllers/driver"
 )
 
 // getWatchNamespace returns the Namespace the operator should be watching for changes
@@ -121,21 +123,33 @@ func (r *AppHookReconciler) reconcile(instance *storagev1alpha1.AppHook) (ctrl.R
 			}
 
 			// uninstall
-			err = r.uninstallHookDeployment(instance)
-			if err != nil {
-				message := fmt.Sprintf("failed to delete HookDeployment: %s", instance.Name)
-				log.Log.Error(err, message)
-				return reconcile.Result{}, err
-			}
+			/*
+				err = r.uninstallHookDeployment(instance)
+				if err != nil {
+					message := fmt.Sprintf("failed to delete HookDeployment: %s", instance.Name)
+					log.Log.Error(err, message)
+					return reconcile.Result{}, err
+				}
+			*/
 		}
 
 		return reconcile.Result{}, nil
 	}
 
 	// install and update
-	log.Log.Info("step: ensureHookDeployment")
-	if err = r.ensureHookDeployment(instance); err != nil {
-		message := fmt.Sprintf("failed to ensureHookDeployment: %s", instance.Name)
+	/*
+		log.Log.Info("step: ensureHookDeployment")
+		if err = r.ensureHookDeployment(instance); err != nil {
+			message := fmt.Sprintf("failed to ensureHookDeployment: %s", instance.Name)
+			log.Log.Error(err, message)
+
+			return reconcile.Result{}, err
+		}
+	*/
+
+	// database quiesce/unquiesce
+	if err = r.ensureHookOperation(instance); err != nil {
+		message := fmt.Sprintf("failed to take action of: %s", instance.Name)
 		log.Log.Error(err, message)
 
 		return reconcile.Result{}, err
@@ -245,6 +259,94 @@ func (r *AppHookReconciler) uninstallHookDeployment(instance *storagev1alpha1.Ap
 	if err != nil {
 		log.Log.Error(err, fmt.Sprintf("failed to delete Hook deployment %s", instance.Name))
 		return err
+	}
+
+	return nil
+}
+
+func (r *AppHookReconciler) ensureHookOperation(instance *storagev1alpha1.AppHook) error {
+	// check secret in the same namespace with operator
+	/*
+		operatorNS, _ := getOperatorNamespace()
+		if instance.Spec.Secret.Namespace != "" {
+			if operatorNS != instance.Spec.Secret.Namespace {
+				nsErr := fmt.Errorf("secret %s namespace %s is different with operator namespace %s", instance.Spec.Secret.Name, instance.Spec.Secret.Namespace, operatorNS)
+				log.Log.Error(nsErr, "")
+				return nsErr
+			}
+		} else {
+			instance.Spec.Secret.Namespace = operatorNS
+		}
+	*/
+
+	appSecret := &corev1.Secret{}
+	err := r.Client.Get(
+		context.TODO(),
+		types.NamespacedName{
+			Name:      instance.Spec.Secret.Name,
+			Namespace: instance.Spec.Secret.Namespace,
+		}, appSecret)
+
+	if err != nil {
+		log.Log.Error(err, fmt.Sprintf("failed to get secret %s in namespace %s", instance.Spec.Secret.Name, instance.Spec.Secret.Namespace))
+		return err
+	}
+
+	// new mgr for operation, todo cache this mgr
+	mgr, err := drivermanager.NewManager(r.Client, instance, appSecret)
+	if err != nil {
+		log.Log.Error(err, fmt.Sprintf("Initialize mamager failed for %s", instance.Name))
+		return err
+	}
+	// check operation type
+	if instance.Spec.OperationType == "" { // new CR
+		if instance.Status.Phase != storagev1alpha1.HookReady {
+			instance.Status.Phase = storagev1alpha1.HookCreated
+			// connect to database to check status
+			err = mgr.DBConnect()
+			if err != nil {
+				log.Log.Error(err, fmt.Sprintf("failed to connect database for %s", instance.Name))
+				instance.Status.Phase = storagev1alpha1.HookNotReady
+			} else {
+				log.Log.Info(fmt.Sprintf("hook for %s is ready", instance.Name))
+				instance.Status.Phase = storagev1alpha1.HookReady
+			}
+		}
+	} else if strings.EqualFold(instance.Spec.OperationType, storagev1alpha1.QUIESCE) {
+		if instance.Status.Phase != storagev1alpha1.HookQUIESCED {
+			// quiesce database
+			log.Log.Info(fmt.Sprintf("quiesce for %s in progress", instance.Name))
+			err = mgr.DBQuiesce()
+			if err != nil {
+				log.Log.Error(err, fmt.Sprintf("failed to quiesce database for %s", instance.Name))
+				instance.Status.Phase = storagev1alpha1.HookQUIESCEINPROGRESS
+			} else {
+				log.Log.Info(fmt.Sprintf("successfully quiesce for %s", instance.Name))
+				instance.Status.Phase = storagev1alpha1.HookQUIESCED
+			}
+		}
+	} else if strings.EqualFold(instance.Spec.OperationType, storagev1alpha1.UNQUIESCE) {
+		if instance.Status.Phase != storagev1alpha1.HookUNQUIESCED {
+			// unquiesce database
+			log.Log.Info(fmt.Sprintf("unquiesce for %s in progress", instance.Name))
+			err = mgr.DBUnquiesce()
+			if err != nil {
+				log.Log.Error(err, fmt.Sprintf("failed to unquiesce database for %s", instance.Name))
+				instance.Status.Phase = storagev1alpha1.HookUNQUIESCEINPROGRESS
+			} else {
+				log.Log.Info(fmt.Sprintf("successfully unquiesce for %s", instance.Name))
+				instance.Status.Phase = storagev1alpha1.HookUNQUIESCED
+			}
+		}
+	} else {
+		log.Log.Error(fmt.Errorf("unsupported operation %s for %s", instance.Spec.OperationType, instance.Name), "err")
+	}
+
+	// update CR status
+	statusError := r.Client.Status().Update(context.TODO(), instance)
+	if statusError != nil {
+		log.Log.Error(statusError, fmt.Sprintf("Failed to update status of %s", instance.Name))
+		return statusError
 	}
 
 	return nil

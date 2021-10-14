@@ -89,9 +89,13 @@ const (
 
 // phase
 const (
-	HookCreated  = "Created"
-	HookReady    = "Ready"
-	HookQUIESCED = "Quiesced"
+	HookCreated             = "Created"
+	HookReady               = "Ready"
+	HookNotReady            = "NotReady"
+	HookQUIESCEINPROGRESS   = "Quiesce In Progress"
+	HookQUIESCED            = "Quiesced"
+	HookUNQUIESCEINPROGRESS = "Unquiesce In Progress"
+	HookUNQUIESCED          = "Unquiesced"
 )
 
 func init() {
