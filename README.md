@@ -11,7 +11,7 @@ Kubernetes application backup hook, which can do quiesce and unquiesce of databa
 3. MySql
 
 ## Usage
-There are examples in config/samples
+There are supported database CR samples in folder examples
 
 ### appHook CR spec 
 
