@@ -19,43 +19,34 @@ package controllers
 import (
 	"context"
 	"fmt"
-	"os"
-	"reflect"
 	"strings"
 
 	"github.com/jibudata/app-hook-operator/controllers/util"
-	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	storagev1alpha1 "github.com/jibudata/app-hook-operator/api/v1alpha1"
 	drivermanager "github.com/jibudata/app-hook-operator/controllers/driver"
 )
 
-// getWatchNamespace returns the Namespace the operator should be watching for changes
-func getOperatorNamespace() (string, error) {
-	// WatchNamespaceEnvVar is the constant for env variable WATCH_NAMESPACE
-	// which specifies the Namespace to watch.
-	// An empty value means the operator is running with cluster scope.
-	var watchNamespaceEnvVar = "WATCH_NAMESPACE"
-
-	ns, found := os.LookupEnv(watchNamespaceEnvVar)
-	if !found {
-		return "", fmt.Errorf("%s must be set", watchNamespaceEnvVar)
-	}
-	return ns, nil
-}
+const (
+	HasStopWatchAnnotation = "apphooks.storage.jibudata.com/stop-watch"
+)
 
 // AppHookReconciler reconciles a AppHook object
 type AppHookReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
+	AppMap map[string]*drivermanager.DriverManager
 }
 
 //+kubebuilder:rbac:groups=storage.jibudata.com,resources=apphooks,verbs=get;list;watch;create;update;patch;delete
@@ -122,30 +113,17 @@ func (r *AppHookReconciler) reconcile(instance *storagev1alpha1.AppHook) (ctrl.R
 				return reconcile.Result{}, err
 			}
 
-			// uninstall
-			/*
-				err = r.uninstallHookDeployment(instance)
-				if err != nil {
-					message := fmt.Sprintf("failed to delete HookDeployment: %s", instance.Name)
-					log.Log.Error(err, message)
-					return reconcile.Result{}, err
-				}
-			*/
+			// remove app hook
+			err = r.ensureRemoveHook(instance)
+			if err != nil {
+				message := fmt.Sprintf("failed to delete app hook: %s", instance.Name)
+				log.Log.Error(err, message)
+				return reconcile.Result{}, err
+			}
 		}
 
 		return reconcile.Result{}, nil
 	}
-
-	// install and update
-	/*
-		log.Log.Info("step: ensureHookDeployment")
-		if err = r.ensureHookDeployment(instance); err != nil {
-			message := fmt.Sprintf("failed to ensureHookDeployment: %s", instance.Name)
-			log.Log.Error(err, message)
-
-			return reconcile.Result{}, err
-		}
-	*/
 
 	// database quiesce/unquiesce
 	if err = r.ensureHookOperation(instance); err != nil {
@@ -160,125 +138,40 @@ func (r *AppHookReconciler) reconcile(instance *storagev1alpha1.AppHook) (ctrl.R
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *AppHookReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	predicateFunc := func(obj runtime.Object) bool {
+		instance, ok := obj.(*storagev1alpha1.AppHook)
+		if !ok {
+			return false
+		}
+
+		// ignore if Annotation is present
+		if _, ok = instance.ObjectMeta.Annotations[HasStopWatchAnnotation]; ok {
+			return false
+		}
+
+		return true
+	}
+
+	appHookCRPredicate := predicate.Funcs{
+		CreateFunc: func(e event.CreateEvent) bool {
+			return predicateFunc(e.Object)
+		},
+		DeleteFunc: func(e event.DeleteEvent) bool {
+			return false
+		},
+		UpdateFunc: func(e event.UpdateEvent) bool {
+			return predicateFunc(e.ObjectNew)
+		},
+		GenericFunc: func(e event.GenericEvent) bool {
+			return predicateFunc(e.Object)
+		},
+	}
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&storagev1alpha1.AppHook{}).
+		For(&storagev1alpha1.AppHook{}, builder.WithPredicates(appHookCRPredicate)).
 		Complete(r)
 }
 
-func (r *AppHookReconciler) ensureHookDeployment(instance *storagev1alpha1.AppHook) error {
-
-	deploymentName := instance.Name
-
-	// check secret in the same namespace with operator
-	operatorNS, _ := getOperatorNamespace()
-	if instance.Spec.Secret.Namespace != "" {
-		if operatorNS != instance.Spec.Secret.Namespace {
-			nsErr := fmt.Errorf("secret %s namespace %s is different with operator namespace %s", instance.Spec.Secret.Name, instance.Spec.Secret.Namespace, operatorNS)
-			log.Log.Error(nsErr, "")
-			return nsErr
-		}
-	} else {
-		instance.Spec.Secret.Namespace = operatorNS
-	}
-
-	appSecret := &corev1.Secret{}
-	err := r.Client.Get(
-		context.TODO(),
-		types.NamespacedName{
-			Name:      instance.Spec.Secret.Name,
-			Namespace: instance.Spec.Secret.Namespace,
-		}, appSecret)
-
-	if err != nil {
-		log.Log.Error(err, fmt.Sprintf("failed to get secret %s in namespace %s", instance.Spec.Secret.Name, instance.Spec.Secret.Namespace))
-		return err
-	}
-
-	expectedDeployment, err := InitHookDeployment(instance, appSecret)
-	if err != nil {
-		log.Log.Error(err, fmt.Sprintf("failed to init deployment %s in namespace %s", instance.Name, instance.Namespace))
-		return err
-	}
-
-	foundDeployment := &appsv1.Deployment{}
-	err = r.Client.Get(
-		context.TODO(),
-		types.NamespacedName{Name: deploymentName, Namespace: instance.Namespace},
-		foundDeployment)
-	if err != nil {
-		if errors.IsNotFound(err) {
-			log.Log.Info(fmt.Sprintf("create Hook deployment %s", instance.Name))
-			err = r.Client.Create(context.TODO(), expectedDeployment)
-			if err != nil {
-				return err
-			}
-			instance.Status.Phase = storagev1alpha1.HookCreated
-			statusError := r.Client.Status().Update(context.TODO(), instance)
-			if statusError != nil {
-				log.Log.Error(statusError, fmt.Sprintf("Failed to update status of %s", instance.Name))
-				return statusError
-			}
-			return nil
-		}
-
-		log.Log.Error(err, fmt.Sprintf("failed to create Hook deployment %s", instance.Name))
-		return err
-	}
-
-	if reflect.DeepEqual(foundDeployment.Spec, expectedDeployment.Spec) {
-		return nil
-	}
-
-	updatedDeployment := updateHookDeployment(foundDeployment, expectedDeployment)
-	if updatedDeployment != nil {
-		log.Log.Info(fmt.Sprintf("update Hook deployment %s", instance.Name))
-		return r.Client.Update(context.TODO(), updatedDeployment)
-	}
-
-	return nil
-}
-
-func (r *AppHookReconciler) uninstallHookDeployment(instance *storagev1alpha1.AppHook) error {
-	deploymentName := instance.Name
-
-	foundDeployment := &appsv1.Deployment{}
-	err := r.Client.Get(
-		context.TODO(),
-		types.NamespacedName{Name: deploymentName, Namespace: instance.Namespace},
-		foundDeployment)
-	if err != nil {
-		if errors.IsNotFound(err) {
-			log.Log.Info(fmt.Sprintf("appHook deployment %s is already deleted", instance.Name))
-			return nil
-		}
-		log.Log.Error(err, fmt.Sprintf("failed to get Hook deployment %s", instance.Name))
-		return err
-	}
-
-	err = r.Client.Delete(context.TODO(), foundDeployment)
-	if err != nil {
-		log.Log.Error(err, fmt.Sprintf("failed to delete Hook deployment %s", instance.Name))
-		return err
-	}
-
-	return nil
-}
-
 func (r *AppHookReconciler) ensureHookOperation(instance *storagev1alpha1.AppHook) error {
-	// check secret in the same namespace with operator
-	/*
-		operatorNS, _ := getOperatorNamespace()
-		if instance.Spec.Secret.Namespace != "" {
-			if operatorNS != instance.Spec.Secret.Namespace {
-				nsErr := fmt.Errorf("secret %s namespace %s is different with operator namespace %s", instance.Spec.Secret.Name, instance.Spec.Secret.Namespace, operatorNS)
-				log.Log.Error(nsErr, "")
-				return nsErr
-			}
-		} else {
-			instance.Spec.Secret.Namespace = operatorNS
-		}
-	*/
-
 	appSecret := &corev1.Secret{}
 	err := r.Client.Get(
 		context.TODO(),
@@ -292,10 +185,10 @@ func (r *AppHookReconciler) ensureHookOperation(instance *storagev1alpha1.AppHoo
 		return err
 	}
 
-	// new mgr for operation, todo cache this mgr
-	mgr, err := drivermanager.NewManager(r.Client, instance, appSecret)
+	// get drivermanager for the CR
+	mgr, err := r.getDriverManager(instance, appSecret)
 	if err != nil {
-		log.Log.Error(err, fmt.Sprintf("Initialize mamager failed for %s", instance.Name))
+		log.Log.Error(err, fmt.Sprintf("failed to get driver manager for %s", instance.Name))
 		return err
 	}
 	// check operation type
@@ -347,6 +240,36 @@ func (r *AppHookReconciler) ensureHookOperation(instance *storagev1alpha1.AppHoo
 	if statusError != nil {
 		log.Log.Error(statusError, fmt.Sprintf("Failed to update status of %s", instance.Name))
 		return statusError
+	}
+
+	return nil
+}
+
+func (r *AppHookReconciler) ensureRemoveHook(instance *storagev1alpha1.AppHook) error {
+	return r.deleteDriverManager(instance)
+}
+
+func (r *AppHookReconciler) getDriverManager(instance *storagev1alpha1.AppHook, appSecret *corev1.Secret) (*drivermanager.DriverManager, error) {
+	// lookup map
+	if r.AppMap[instance.Name] == nil {
+		// if not exist, create new drivermanager
+		mgr, err := drivermanager.NewManager(r.Client, instance, appSecret)
+		if err != nil {
+			log.Log.Error(err, fmt.Sprintf("Initialize mamager failed for %s", instance.Name))
+			return nil, err
+		}
+		// cache the drivermanager
+		r.AppMap[instance.Name] = mgr
+	}
+
+	return r.AppMap[instance.Name], nil
+}
+
+func (r *AppHookReconciler) deleteDriverManager(instance *storagev1alpha1.AppHook) error {
+	// lookup map
+	if r.AppMap[instance.Name] != nil {
+		// if exist, delete drivermanager
+		delete(r.AppMap, instance.Name)
 	}
 
 	return nil

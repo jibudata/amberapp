@@ -16,8 +16,6 @@ limitations under the License.
 package controllers
 
 import (
-	"reflect"
-
 	storagev1alpha1 "github.com/jibudata/app-hook-operator/api/v1alpha1"
 	"github.com/jibudata/app-hook-operator/controllers/util"
 	appsv1 "k8s.io/api/apps/v1"
@@ -134,15 +132,4 @@ func InitHookDeployment(
 			},
 		},
 	}, nil
-}
-
-func updateHookDeployment(found *appsv1.Deployment, expected *appsv1.Deployment) *appsv1.Deployment {
-
-	if !reflect.DeepEqual(found.Spec, expected.Spec) {
-		updated := found.DeepCopy()
-		updated.Spec = *expected.Spec.DeepCopy()
-		return updated
-	}
-
-	return nil
 }

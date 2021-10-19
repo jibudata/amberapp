@@ -15,14 +15,18 @@ type PG struct {
 	db     *sql.DB
 }
 
-func (pg *PG) Connect(appConfig appconfig.Config) error {
-	var err error
+func (pg *PG) Init(appConfig appconfig.Config) error {
 	pg.config = appConfig
+	return nil
+}
+
+func (pg *PG) Connect() error {
+	var err error
 	log.Log.Info("postgres connecting")
 
-	connectionConfigStrings := pg.getConnectionString(appConfig)
+	connectionConfigStrings := pg.getConnectionString()
 	if len(connectionConfigStrings) == 0 {
-		return fmt.Errorf("no database found in %s", appConfig.Name)
+		return fmt.Errorf("no database found in %s", pg.config.Name)
 	}
 
 	for i := 0; i < len(connectionConfigStrings); i++ {
@@ -34,7 +38,7 @@ func (pg *PG) Connect(appConfig appconfig.Config) error {
 
 		err = pg.db.Ping()
 		if err != nil {
-			log.Log.Error(err, "cannot connect to postgres database %s", appConfig.Databases[i])
+			log.Log.Error(err, "cannot connect to postgres database %s", pg.config.Databases[i])
 			return err
 		}
 		pg.db.Close()
@@ -42,17 +46,16 @@ func (pg *PG) Connect(appConfig appconfig.Config) error {
 	return nil
 }
 
-func (pg *PG) Quiesce(appConfig appconfig.Config) error {
+func (pg *PG) Quiesce() error {
 	var err error
-	pg.config = appConfig
 	log.Log.Info("postgres quiesce in progress...")
 
 	backupName := "test"
 	fastStartString := "true"
 
-	connectionConfigStrings := pg.getConnectionString(appConfig)
+	connectionConfigStrings := pg.getConnectionString()
 	if len(connectionConfigStrings) == 0 {
-		return fmt.Errorf("no database found in %s", appConfig.Name)
+		return fmt.Errorf("no database found in %s", pg.config.Name)
 	}
 
 	for i := 0; i < len(connectionConfigStrings); i++ {
@@ -89,13 +92,12 @@ func (pg *PG) Quiesce(appConfig appconfig.Config) error {
 	return nil
 }
 
-func (pg *PG) Unquiesce(appConfig appconfig.Config) error {
+func (pg *PG) Unquiesce() error {
 	var err error
-	pg.config = appConfig
 	log.Log.Info("postgres unquiesce in progress...")
-	connectionConfigStrings := pg.getConnectionString(appConfig)
+	connectionConfigStrings := pg.getConnectionString()
 	if len(connectionConfigStrings) == 0 {
-		return fmt.Errorf("no database found in %s", appConfig.Name)
+		return fmt.Errorf("no database found in %s", pg.config.Name)
 	}
 
 	for i := 0; i < len(connectionConfigStrings); i++ {
@@ -128,20 +130,18 @@ func (pg *PG) Unquiesce(appConfig appconfig.Config) error {
 	return nil
 }
 
-func (pg *PG) getConnectionString(appConfig appconfig.Config) []string {
-	// port := "3306"
+func (pg *PG) getConnectionString() []string {
 	var dbname string
 	var connstr []string
 
-	if len(appConfig.Databases) == 0 {
-		log.Log.Error(fmt.Errorf("no database found in %s", appConfig.Name), "")
+	if len(pg.config.Databases) == 0 {
+		log.Log.Error(fmt.Errorf("no database found in %s", pg.config.Name), "")
 		return connstr
 	}
 
-	for i := 0; i < len(appConfig.Databases); i++ {
-		dbname = appConfig.Databases[i]
-		connstr = append(connstr, fmt.Sprintf("host=%s user=%s password=%s dbname=%s sslmode=disable", appConfig.Host, appConfig.Username, appConfig.Password, dbname))
-		// log.Log.Info(fmt.Sprintf("connecting string: %s", connstr))
+	for i := 0; i < len(pg.config.Databases); i++ {
+		dbname = pg.config.Databases[i]
+		connstr = append(connstr, fmt.Sprintf("host=%s user=%s password=%s dbname=%s sslmode=disable", pg.config.Host, pg.config.Username, pg.config.Password, dbname))
 	}
 	return connstr
 }
