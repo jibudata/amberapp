@@ -17,11 +17,18 @@ limitations under the License.
 package unquiesce
 
 import (
+	"context"
+	"fmt"
+
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/types"
 
+	"github.com/jibudata/app-hook-operator/api/v1alpha1"
 	"github.com/jibudata/app-hook-operator/pkg/client"
 	"github.com/jibudata/app-hook-operator/pkg/cmd"
+	"github.com/jibudata/app-hook-operator/pkg/util"
 )
 
 type UnquiesceOptions struct {
@@ -38,20 +45,89 @@ func NewCommand(client *client.Client) *cobra.Command {
 		Short: "Unquiesce a Database",
 		Long:  "Unquiesce a Database which has been quiesced",
 		Run: func(c *cobra.Command, args []string) {
+			cmd.CheckError(option.Validate(c, client))
 			cmd.CheckError(option.Run(client))
 		},
 	}
 
-	option.BindFlags(c.Flags())
+	option.BindFlags(c.Flags(), c)
 
 	return c
 }
 
-func (c *UnquiesceOptions) BindFlags(flags *pflag.FlagSet) {
-	flags.StringVarP(&c.Name, "name", "n", "", "database configration name")
+func (u *UnquiesceOptions) BindFlags(flags *pflag.FlagSet, c *cobra.Command) {
+	flags.StringVarP(&u.Name, "name", "n", "", "database configration name")
+	c.MarkFlagRequired("name")
 	//flags.StringVarP(&c.Database, "database", "d", "", "name of the database instance")
 }
 
-func (c *UnquiesceOptions) Run(kubeclient *client.Client) error {
+func (u *UnquiesceOptions) Validate(command *cobra.Command, kubeclient *client.Client) error {
+	// Check WATCH_NAMESPACE, and if namespace exits, apphook operator is running
+	namespace, err := util.GetOperatorNamespace()
+	if err != nil {
+		return err
+	}
+	ns := &corev1.Namespace{}
+	err = kubeclient.Get(
+		context.TODO(),
+		types.NamespacedName{
+			Name: namespace,
+		},
+		ns)
+
+	if err != nil {
+		return err
+	}
+
 	return nil
+}
+
+func (u *UnquiesceOptions) updateHookCR(kubeclient *client.Client, namespace string) error {
+	crName := u.Name + "-hook"
+
+	foundHook := &v1alpha1.AppHook{}
+	err := kubeclient.Get(
+		context.TODO(),
+		types.NamespacedName{
+			Namespace: namespace,
+			Name:      crName,
+		},
+		foundHook)
+
+	if err != nil {
+		return err
+	}
+
+	switch foundHook.Status.Phase {
+	case v1alpha1.HookReady:
+		return fmt.Errorf("hook CR %s not quiesced yet", foundHook.Name)
+	case v1alpha1.HookNotReady:
+		return fmt.Errorf("hook CR %s not ready yet", foundHook.Name)
+	case v1alpha1.HookUNQUIESCED:
+		return fmt.Errorf("hook CR %s already unquiesced", foundHook.Name)
+	case v1alpha1.HookQUIESCEINPROGRESS:
+		return fmt.Errorf("hook CR %s quiesce still in progress, please wait", foundHook.Name)
+	case v1alpha1.HookUNQUIESCEINPROGRESS:
+		return fmt.Errorf("hook CR %s unquiesce already in progress", foundHook.Name)
+	case v1alpha1.HookQUIESCED:
+	}
+
+	foundHook.Spec.OperationType = v1alpha1.UNQUIESCE
+
+	return kubeclient.Update(context.TODO(), foundHook)
+}
+
+func (u *UnquiesceOptions) Run(kubeclient *client.Client) error {
+	crName := u.Name + "-hook"
+	namespace, err := util.GetOperatorNamespace()
+	if err != nil {
+		return err
+	}
+
+	err = u.updateHookCR(kubeclient, namespace)
+	if err == nil {
+		fmt.Printf("Update hook success: %s, namespace: %s\n", crName, namespace)
+	}
+
+	return err
 }
