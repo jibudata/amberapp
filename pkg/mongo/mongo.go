@@ -15,12 +15,16 @@ type MG struct {
 	config appconfig.Config
 }
 
-func (mg *MG) Connect(appConfig appconfig.Config) error {
-	var err error
+func (mg *MG) Init(appConfig appconfig.Config) error {
 	mg.config = appConfig
+	return nil
+}
+
+func (mg *MG) Connect() error {
+	var err error
 	log.Log.Info("mongodb connecting...")
 
-	client, err := getMongodbClient(appConfig)
+	client, err := getMongodbClient(mg.config)
 	if err != nil {
 		return err
 	}
@@ -34,76 +38,36 @@ func (mg *MG) Connect(appConfig appconfig.Config) error {
 	return nil
 }
 
-func (mg *MG) Quiesce(appConfig appconfig.Config) error {
+func (mg *MG) Quiesce() error {
 	var err error
-	mg.config = appConfig
 	log.Log.Info("mongodb quiesce in progress")
-	client, err := getMongodbClient(appConfig)
+	client, err := getMongodbClient(mg.config)
 	if err != nil {
 		return err
 	}
 	db := client.Database("admin")
 	result := db.RunCommand(context.TODO(), bson.D{{Key: "fsync", Value: 1}, {Key: "lock", Value: true}})
 	if result.Err() != nil {
-		log.Log.Error(result.Err(), fmt.Sprintf("failed to quiesce %s", appConfig.Name))
+		log.Log.Error(result.Err(), fmt.Sprintf("failed to quiesce %s", mg.config.Name))
 		return result.Err()
 	}
 
-	/*
-		mongoDBDialInfo := &mgo.DialInfo{
-			Addrs:     []string{appConfig.Host},
-			Database:  "admin",
-			Username:  appConfig.Username,
-			Password:  appConfig.Password,
-			Mechanism: "SCRAM-SHA-256",
-		}
-		session, err := mgo.DialWithInfo(mongoDBDialInfo)
-		if err != nil {
-			log.Log.Error(err, "")
-			return err
-		}
-		defer session.Close()
-		err = session.FsyncLock()
-		if err != nil {
-			log.Log.Error(err, "")
-			return err
-		}
-	*/
 	return nil
 }
 
-func (mg *MG) Unquiesce(appConfig appconfig.Config) error {
-	mg.config = appConfig
+func (mg *MG) Unquiesce() error {
 	log.Log.Info("mongodb unquiesce in progress")
-	client, err := getMongodbClient(appConfig)
+	client, err := getMongodbClient(mg.config)
 	if err != nil {
 		return err
 	}
 	db := client.Database("admin")
 	result := db.RunCommand(context.TODO(), bson.D{{Key: "fsyncUnlock", Value: 1}})
 	if result.Err() != nil {
-		log.Log.Error(result.Err(), fmt.Sprintf("failed to unquiesce %s", appConfig.Name))
+		log.Log.Error(result.Err(), fmt.Sprintf("failed to unquiesce %s", mg.config.Name))
 		return result.Err()
 	}
 
-	/*
-		mongoDBDialInfo := &mgo.DialInfo{
-			Addrs:    []string{appConfig.Host},
-			Database: "admin",
-			Username: appConfig.Username,
-			Password: appConfig.Password,
-		}
-		session, err := mgo.DialWithInfo(mongoDBDialInfo)
-		if err != nil {
-			log.Log.Error(err, "")
-		}
-		defer session.Close()
-		err = session.FsyncUnlock()
-		if err != nil {
-			log.Log.Error(err, "")
-			return err
-		}
-	*/
 	return nil
 }
 

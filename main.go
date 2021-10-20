@@ -33,6 +33,7 @@ import (
 
 	storagev1alpha1 "github.com/jibudata/app-hook-operator/api/v1alpha1"
 	"github.com/jibudata/app-hook-operator/controllers"
+	drivermanager "github.com/jibudata/app-hook-operator/controllers/driver"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -82,6 +83,7 @@ func main() {
 	if err = (&controllers.AppHookReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
+		AppMap: make(map[string]*drivermanager.DriverManager),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "AppHook")
 		os.Exit(1)
