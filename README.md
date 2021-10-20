@@ -6,14 +6,44 @@ Kubernetes application backup hook, which can do quiesce and unquiesce of databa
 2. kubectl apply -f deploy
 
 ## Supported databases
-1. Postgres
-2. Mongodb
-3. MySql
+1. PostgreSQL
+2. MongoDB
+3. MySQL
 
 ## Usage
+### CLI example
+1. Clone repo, do install as above, run `make` to build binaries
+2. Create an hook to MySQL database:
+```bash
+# bin/apphook create -n test -a mysql -e "wordpress-mysql.wordpress" -u root -p passw0rd --databases mysql
+
+# kubectl get apphook -n app-hook-operator-system test-hook
+NAME        AGE   CREATED AT             PHASE
+test-hook   8s    2021-10-20T12:26:28Z   Ready
+```
+3. Quiesce DB:
+```bash
+# bin/apphook quiesce -n test
+
+# kubectl get apphook -n app-hook-operator-system test-hook
+test-hook   18m   2021-10-20T12:26:28Z   Quiesced
+```
+4. Unquiesce DB:
+```bash
+# bin/apphook unquiesce -n test
+
+# kubectl get apphook -n app-hook-operator-system test-hook
+test-hook   18m   2021-10-20T12:26:28Z   Unquiesced
+```
+5. Delete hook:
+```bash
+# bin/apphook delete -n test
+```
+
+### Use CR
 There are supported database CR samples in folder examples
 
-### appHook CR spec 
+#### appHook CR spec 
 
 | Param | Type | Supported values | Description |
 | ----------- | ----------- | ----------- | ----------- |
@@ -24,7 +54,7 @@ There are supported database CR samples in folder examples
 |TimeoutSeconds | *int32 | >=0 | timeout of operation|
 |Secret |corev1.SecretReference | name: xxx, namespace: xxx | Secret to access the database|
 
-### Status
+#### Status
 
 | status | Description |
 | ---------------- | --------------------- |
