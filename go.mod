@@ -7,11 +7,14 @@ require (
 	github.com/lib/pq v1.10.3
 	github.com/onsi/ginkgo v1.16.4
 	github.com/onsi/gomega v1.13.0
+	github.com/pkg/errors v0.9.1
+	github.com/spf13/cobra v1.1.1
 	go.mongodb.org/mongo-driver v1.7.3
-	gopkg.in/mgo.v2 v2.0.0-20190816093944-a6b53ec6cb22
+	gopkg.in/mgo.v2 v2.0.0-20190816093944-a6b53ec6cb22 // indirect
 	k8s.io/api v0.21.2
 	k8s.io/apimachinery v0.21.2
 	k8s.io/client-go v0.21.2
+	k8s.io/klog v1.0.0
 	k8s.io/klog/v2 v2.10.0 // indirect
 	sigs.k8s.io/controller-runtime v0.9.2
 
