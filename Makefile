@@ -1,7 +1,8 @@
 SHELL := /bin/bash
 
-REPO = quay.io
-NAMESPACE = shdn
+#REPO = quay.io
+REPO = registry.cn-shanghai.aliyuncs.com
+NAMESPACE = jibudata
 IMG_NAME = app-hook-operator
 VERSION = 0.0.1
 
