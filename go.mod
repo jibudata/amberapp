@@ -9,6 +9,7 @@ require (
 	github.com/onsi/gomega v1.13.0
 	github.com/pkg/errors v0.9.1
 	github.com/spf13/cobra v1.1.1
+	github.com/spf13/pflag v1.0.5
 	go.mongodb.org/mongo-driver v1.7.3
 	gopkg.in/mgo.v2 v2.0.0-20190816093944-a6b53ec6cb22 // indirect
 	k8s.io/api v0.21.2
