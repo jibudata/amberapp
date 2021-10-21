@@ -92,9 +92,6 @@ func (c *DeleteOptions) deleteSecret(kubeclient *client.Client, secretName, name
 		foundSecret)
 
 	if err != nil {
-		if errors.IsNotFound(err) {
-			return nil
-		}
 		return err
 	}
 
@@ -114,9 +111,6 @@ func (d *DeleteOptions) deleteHookCR(kubeclient *client.Client, namespace string
 		foundHook)
 
 	if err != nil {
-		if errors.IsNotFound(err) {
-			return nil
-		}
 		return err
 	}
 
@@ -133,12 +127,24 @@ func (d *DeleteOptions) Run(kubeclient *client.Client) error {
 
 	err = d.deleteSecret(kubeclient, secretName, namespace)
 	if err != nil {
-		return nil
+		if errors.IsNotFound(err) {
+			fmt.Printf("secret not found: %s, namespace: %s\n", secretName, namespace)
+		} else {
+			return err
+		}
+	} else {
+		fmt.Printf("Delete secret success: %s, namespace: %s\n", secretName, namespace)
 	}
-	fmt.Printf("Delete secret success: %s, namespace: %s\n", secretName, namespace)
 
 	err = d.deleteHookCR(kubeclient, namespace)
-	if err == nil {
+	if err != nil {
+		if errors.IsNotFound(err) {
+			fmt.Printf("hook not found: %s, namespace: %s\n", crName, namespace)
+			return nil
+		} else {
+			return err
+		}
+	} else {
 		fmt.Printf("Delete database configuration success: %s, namespace: %s\n", crName, namespace)
 	}
 
