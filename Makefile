@@ -1,7 +1,8 @@
 SHELL := /bin/bash
 
-REPO = quay.io
-NAMESPACE = shdn
+#REPO = quay.io
+REPO = registry.cn-shanghai.aliyuncs.com
+NAMESPACE = jibudata
 IMG_NAME = app-hook-operator
 VERSION = 0.0.1
 
@@ -83,6 +84,7 @@ test: manifests generate fmt vet envtest ## Run tests.
 
 build: generate fmt vet ## Build manager binary.
 	go build -o bin/manager main.go
+	go build -o bin/apphook cmd/main.go
 
 run: manifests generate fmt vet ## Run a controller from your host.
 	go run ./main.go

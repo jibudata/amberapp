@@ -4,7 +4,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.6.1
+    controller-gen.kubebuilder.io/version: v0.4.1
   creationTimestamp: null
   name: apphooks.storage.jibudata.com
 spec:
@@ -97,9 +97,6 @@ spec:
             description: AppHookStatus defines the observed state of AppHook
             properties:
               phase:
-                description: 'INSERT ADDITIONAL STATUS FIELD - define observed state
-                  of cluster Important: Run "make" to regenerate code after modifying
-                  this file'
                 type: string
             type: object
         type: object

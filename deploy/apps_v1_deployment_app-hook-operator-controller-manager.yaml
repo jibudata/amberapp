@@ -37,7 +37,8 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.namespace
-        image: quay.io/shdn/app-hook-operator:0.0.1
+        #image: quay.io/shdn/app-hook-operator:0.0.1
+        image: registry.cn-shanghai.aliyuncs.com/jibudata/app-hook-operator:0.0.1
         livenessProbe:
           httpGet:
             path: /healthz
