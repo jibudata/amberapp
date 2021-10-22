@@ -19,11 +19,13 @@ package quiesce
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/wait"
 
 	"github.com/jibudata/app-hook-operator/api/v1alpha1"
 	"github.com/jibudata/app-hook-operator/pkg/client"
@@ -31,8 +33,14 @@ import (
 	"github.com/jibudata/app-hook-operator/pkg/util"
 )
 
+const (
+	DefaultPollInterval = 1 * time.Second
+	DefaultPollTimeout  = 60 * time.Second
+)
+
 type QuiesceOptions struct {
 	Name string
+	Wait bool
 	//Database    string
 }
 
@@ -58,6 +66,7 @@ func NewCommand(client *client.Client) *cobra.Command {
 func (q *QuiesceOptions) BindFlags(flags *pflag.FlagSet, c *cobra.Command) {
 	flags.StringVarP(&q.Name, "name", "n", "", "database configration name")
 	c.MarkFlagRequired("name")
+	flags.BoolVarP(&q.Wait, "wait", "w", false, "wait for quiescd")
 	//flags.StringVarP(&c.Database, "database", "d", "", "name of the database instance")
 }
 
@@ -118,6 +127,33 @@ func (q *QuiesceOptions) updateHookCR(kubeclient *client.Client, namespace strin
 	return kubeclient.Update(context.TODO(), foundHook)
 }
 
+func (q *QuiesceOptions) waitUntilQuiesced(kubeclient *client.Client, namespace string) (error, bool) {
+	crName := q.Name + "-hook"
+	done := false
+
+	err := wait.PollImmediate(DefaultPollInterval, DefaultPollTimeout, func() (bool, error) {
+		foundHook := &v1alpha1.AppHook{}
+		err := kubeclient.Get(
+			context.TODO(),
+			types.NamespacedName{
+				Namespace: namespace,
+				Name:      crName,
+			},
+			foundHook)
+
+		if err != nil {
+			return false, err
+		}
+		if foundHook.Status.Phase == v1alpha1.HookQUIESCED {
+			done = true
+			return true, nil
+		}
+		return false, nil
+	})
+
+	return err, done
+}
+
 func (q *QuiesceOptions) Run(kubeclient *client.Client) error {
 	crName := q.Name + "-hook"
 	namespace, err := util.GetOperatorNamespace()
@@ -128,7 +164,21 @@ func (q *QuiesceOptions) Run(kubeclient *client.Client) error {
 	err = q.updateHookCR(kubeclient, namespace)
 	if err == nil {
 		fmt.Printf("Update hook success: %s, namespace: %s\n", crName, namespace)
+	} else {
+		return err
 	}
 
-	return err
+	if q.Wait {
+		fmt.Printf("Waiting for db get quiesced: %s, namespace: %s\n", crName, namespace)
+		err, done := q.waitUntilQuiesced(kubeclient, namespace)
+		if err != nil {
+			fmt.Printf("wait for hook into quiesced state error: %s, namespace: %s\n", crName, namespace)
+			return err
+		}
+		if done {
+			fmt.Printf("Database is successfully quiesced: %s, namespace: %s\n", crName, namespace)
+		}
+	}
+
+	return nil
 }
