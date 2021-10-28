@@ -1,0 +1,101 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: hooktest
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: hooktest-mysql
+  namespace: hooktest
+  labels:
+    app: hooktest
+spec:
+  ports:
+  - port: 3306
+    protocol: TCP
+    targetPort: 3306
+  selector:
+    app: hooktest
+    tier: mysql
+  type: ClusterIP
+  #clusterIP: None
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mysql-pv-claim
+  namespace: hooktest
+  labels:
+    app: hooktest
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: rook-ceph-block
+  #storageClassName: managed-nfs-storage
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: apps/v1 # for versions before 1.9.0 use apps/v1beta2
+kind: Deployment
+metadata:
+  name: hooktest-mysql
+  namespace: hooktest
+  labels:
+    app: hooktest
+spec:
+  selector:
+    matchLabels:
+      app: hooktest
+      tier: mysql
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: hooktest
+        tier: mysql
+    spec:
+      containers:
+      - image: mysql:8.0
+        name: mysql
+        env:
+        - name: MYSQL_ROOT_PASSWORD
+          value: passw0rd
+        ports:
+        - containerPort: 3306
+          name: mysql
+        volumeMounts:
+        - name: mysql-persistent-storage
+          mountPath: /var/lib/mysql
+        livenessProbe:
+          exec:
+            command: ["mysqladmin", "ping"]
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+        readinessProbe:
+          exec:
+            # Check we can execute queries over TCP (skip-networking is off).
+            #command: ["mysql", "-h", "127.0.0.1", "-e", "SELECT 1"]
+            command:
+            - bash
+            - "-c"
+            - |
+              set -ex
+              mysql -h 127.0.0.1 -uroot -p$MYSQL_ROOT_PASSWORD -e "SELECT 1" &> /dev/null
+          initialDelaySeconds: 5
+          periodSeconds: 2
+          timeoutSeconds: 1
+      - image: registry.cn-shanghai.aliyuncs.com/jibudata/app-hook:0.0.2
+        name: app-hook
+        env:
+        - name: WATCH_NAMESPACE
+          value: app-hook-operator-system
+        securityContext:
+          privileged: true
+      volumes:
+      - name: mysql-persistent-storage
+        persistentVolumeClaim:
+          claimName: mysql-pv-claim

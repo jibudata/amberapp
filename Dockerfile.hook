@@ -1,0 +1,41 @@
+# Build the manager binary
+FROM golang:1.15 as builder
+
+ENV GOPROXY=https://goproxy.cn,direct
+#ARG GOPROXY
+
+WORKDIR /workspace
+# Copy the Go Modules manifests
+COPY go.mod go.mod
+COPY go.sum go.sum
+# cache deps before building and copying source so that we don't need to re-download as much
+# and so that source changes don't invalidate our downloaded layer
+RUN go mod download
+# Copy the go source
+COPY cmd/main.go cmd/main.go
+COPY api/ api/
+#COPY controllers/ controllers/
+COPY pkg/ pkg/
+COPY hack/ hack/
+# COPY vendor/ vendor/
+
+
+# Build
+ENV BUILDTAGS containers_image_ostree_stub exclude_graphdriver_devicemapper exclude_graphdriver_btrfs containers_image_openpgp exclude_graphdriver_overlay
+RUN CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build -tags "$BUILDTAGS" -a -o apphook cmd/main.go
+
+# Use distroless as minimal base image to package the manager binary
+# Refer to https://github.com/GoogleContainerTools/distroless for more details
+
+# Download gcr.io/xxx images with following commands
+# curl -s https://zhangguanzhang.github.io/bash/pull.sh | bash -s -- gcr.io/distroless/static:nonroot
+# FROM registry.access.redhat.com/ubi8/ubi-minimal:latest
+#FROM jibutech/ubi8-minimal:latest
+FROM centos:7
+
+WORKDIR /
+COPY --from=builder /workspace/apphook .
+COPY --from=builder /workspace/hack/quiesce.sh .
+COPY --from=builder /workspace/hack/unquiesce.sh .
+
+ENTRYPOINT ["/bin/sleep", "3600"]
