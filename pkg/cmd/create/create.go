@@ -24,6 +24,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -121,6 +122,10 @@ func (c *CreateOptions) createSecret(kubeclient *client.Client, secretName, name
 
 	err := kubeclient.Create(context.TODO(), secret)
 	if err != nil {
+		if errors.IsAlreadyExists(err) {
+			fmt.Printf("secret already exists: %s, namespace: %s\n", c.Name, namespace)
+			return nil
+		}
 		return err
 	}
 
@@ -141,6 +146,33 @@ func (c *CreateOptions) createSecret(kubeclient *client.Client, secretName, name
 	})
 
 	return nil
+}
+
+func (c *CreateOptions) waitUntilReady(kubeclient *client.Client, namespace string) (error, bool) {
+	crName := c.Name + "-hook"
+	done := false
+
+	err := wait.PollImmediate(DefaultPollInterval, DefaultPollTimeout, func() (bool, error) {
+		foundHook := &v1alpha1.AppHook{}
+		err := kubeclient.Get(
+			context.TODO(),
+			types.NamespacedName{
+				Namespace: namespace,
+				Name:      crName,
+			},
+			foundHook)
+
+		if err != nil {
+			return false, err
+		}
+		if foundHook.Status.Phase == v1alpha1.HookReady {
+			done = true
+			return true, nil
+		}
+		return false, nil
+	})
+
+	return err, done
 }
 
 func (c *CreateOptions) createApphookCR(kubeclient *client.Client, secretName, namespace string) error {
@@ -168,6 +200,10 @@ func (c *CreateOptions) createApphookCR(kubeclient *client.Client, secretName, n
 
 	err := kubeclient.Create(context.TODO(), hookCR)
 	if err != nil {
+		if errors.IsAlreadyExists(err) {
+			fmt.Printf("apphook already exists: %s, namespace: %s\n", c.Name, namespace)
+			return nil
+		}
 		return err
 	}
 	return nil
@@ -193,6 +229,16 @@ func (c *CreateOptions) Run(kubeclient *client.Client) error {
 		return err
 	}
 
-	fmt.Printf("Created apphook: %s, use `kubectl get apphook -n %s %s` to look at the status\n", crName, namespace, crName)
+	//fmt.Printf("Created apphook: %s, use `kubectl get apphook -n %s %s` to look at the status\n", crName, namespace, crName)
+	fmt.Printf("Waiting for db get ready: %s, namespace: %s\n", crName, namespace)
+	err, done := c.waitUntilReady(kubeclient, namespace)
+	if err != nil {
+		fmt.Printf("wait for hook ready error: %s, namespace: %s\n", crName, namespace)
+		return err
+	}
+	if done {
+		fmt.Printf("Database is successfully connected and ready: %s, namespace: %s\n", crName, namespace)
+	}
+
 	return err
 }
