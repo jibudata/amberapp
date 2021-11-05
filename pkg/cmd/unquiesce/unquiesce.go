@@ -165,12 +165,15 @@ func (u *UnquiesceOptions) Run(kubeclient *client.Client) error {
 		return err
 	}
 
+	startTime := time.Now()
 	err, done := u.waitUntilUnquiesced(kubeclient, namespace)
+	doneTime := time.Now()
+	duration := doneTime.Sub(startTime)
 	if err != nil {
 		return err
 	}
 	if done {
-		fmt.Printf("Database is successfully unquiesced: %s, namespace: %s\n", crName, namespace)
+		fmt.Printf("Database is successfully unquiesced: %s, namespace: %s, duration: %s\n", crName, namespace, duration)
 	}
 
 	return err

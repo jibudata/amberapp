@@ -169,14 +169,17 @@ func (q *QuiesceOptions) Run(kubeclient *client.Client) error {
 	}
 
 	if q.Wait {
+		startTime := time.Now()
 		fmt.Printf("Waiting for db get quiesced: %s, namespace: %s\n", crName, namespace)
 		err, done := q.waitUntilQuiesced(kubeclient, namespace)
+		doneTime := time.Now()
+		duration := doneTime.Sub(startTime)
 		if err != nil {
 			fmt.Printf("wait for hook into quiesced state error: %s, namespace: %s\n", crName, namespace)
 			return err
 		}
 		if done {
-			fmt.Printf("Database is successfully quiesced: %s, namespace: %s\n", crName, namespace)
+			fmt.Printf("Database is successfully quiesced: %s, namespace: %s, duration: %s\n", crName, namespace, duration)
 		}
 	}
 
