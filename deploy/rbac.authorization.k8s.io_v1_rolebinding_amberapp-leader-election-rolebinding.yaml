@@ -1,0 +1,13 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: amberapp-leader-election-rolebinding
+  namespace: amberapp-system
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: amberapp-leader-election-role
+subjects:
+- kind: ServiceAccount
+  name: amberapp-controller-manager
+  namespace: amberapp-system

@@ -6,9 +6,9 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.6.1
   creationTimestamp: null
-  name: apphooks.storage.jibudata.com
+  name: apphooks.ys.jibudata.com
 spec:
-  group: storage.jibudata.com
+  group: ys.jibudata.com
   names:
     kind: AppHook
     listKind: AppHookList

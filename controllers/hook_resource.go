@@ -16,8 +16,8 @@ limitations under the License.
 package controllers
 
 import (
-	storagev1alpha1 "github.com/jibudata/app-hook-operator/api/v1alpha1"
-	"github.com/jibudata/app-hook-operator/controllers/util"
+	storagev1alpha1 "github.com/jibudata/amberapp/api/v1alpha1"
+	"github.com/jibudata/amberapp/controllers/util"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -127,7 +127,7 @@ func InitHookDeployment(
 							},
 						},
 					},
-					ServiceAccountName: "app-hook-operator-controller-manager",
+					ServiceAccountName: "amberapp-controller-manager",
 				},
 			},
 		},

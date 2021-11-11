@@ -22,12 +22,12 @@ import (
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 
-	"github.com/jibudata/app-hook-operator/api/v1alpha1"
-	"github.com/jibudata/app-hook-operator/pkg/client"
-	"github.com/jibudata/app-hook-operator/pkg/cmd/create"
-	"github.com/jibudata/app-hook-operator/pkg/cmd/delete"
-	"github.com/jibudata/app-hook-operator/pkg/cmd/quiesce"
-	"github.com/jibudata/app-hook-operator/pkg/cmd/unquiesce"
+	"github.com/jibudata/amberapp/api/v1alpha1"
+	"github.com/jibudata/amberapp/pkg/client"
+	"github.com/jibudata/amberapp/pkg/cmd/create"
+	"github.com/jibudata/amberapp/pkg/cmd/delete"
+	"github.com/jibudata/amberapp/pkg/cmd/quiesce"
+	"github.com/jibudata/amberapp/pkg/cmd/unquiesce"
 )
 
 var (

@@ -31,9 +31,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	storagev1alpha1 "github.com/jibudata/app-hook-operator/api/v1alpha1"
-	"github.com/jibudata/app-hook-operator/controllers"
-	drivermanager "github.com/jibudata/app-hook-operator/controllers/driver"
+	storagev1alpha1 "github.com/jibudata/amberapp/api/v1alpha1"
+	"github.com/jibudata/amberapp/controllers"
+	drivermanager "github.com/jibudata/amberapp/controllers/driver"
 	//+kubebuilder:scaffold:imports
 )
 

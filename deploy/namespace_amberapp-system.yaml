@@ -3,4 +3,4 @@ kind: Namespace
 metadata:
   labels:
     control-plane: controller-manager
-  name: app-hook-operator-system
+  name: amberapp-system

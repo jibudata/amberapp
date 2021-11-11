@@ -92,7 +92,7 @@ spec:
         name: app-hook
         env:
         - name: WATCH_NAMESPACE
-          value: app-hook-operator-system
+          value: amberapp-system
         securityContext:
           privileged: true
       volumes:

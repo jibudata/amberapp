@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/jibudata/app-hook-operator/pkg/appconfig"
+	"github.com/jibudata/amberapp/pkg/appconfig"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"

@@ -2,7 +2,7 @@ apiVersion: v1
 kind: Secret
 metadata:
   name: mysql-secret
-  namespace: app-hook-operator-system
+  namespace: amberapp-system
 type: Opaque
 stringData:
   username: root
@@ -12,7 +12,7 @@ apiVersion: storage.jibudata.com/v1alpha1
 kind: AppHook
 metadata:
   name: mysql-sample
-  namespace: app-hook-operator-system
+  namespace: amberapp-system
 spec:
   name: mysql-sample
   appProvider: mysql
@@ -21,4 +21,4 @@ spec:
     - test
   secret: 
     name: "mysql-secret"
-    namespace: "app-hook-operator-system"
+    namespace: "amberapp-system"

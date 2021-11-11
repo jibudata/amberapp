@@ -1,4 +1,4 @@
-module github.com/jibudata/app-hook-operator
+module github.com/jibudata/amberapp
 
 go 1.16
 

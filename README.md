@@ -1,4 +1,4 @@
-# app-hook-operator
+# amberapp
 Kubernetes application backup hook, which can do quiesce and unquiesce of databases during application backup
 
 ## Installation
@@ -17,7 +17,7 @@ Kubernetes application backup hook, which can do quiesce and unquiesce of databa
 ```bash
 # bin/apphook create -n test -a mysql -e "wordpress-mysql.wordpress" -u root -p passw0rd --databases mysql
 
-# kubectl get apphook -n app-hook-operator-system test-hook
+# kubectl get apphook -n amberapp-system test-hook
 NAME        AGE   CREATED AT             PHASE
 test-hook   8s    2021-10-20T12:26:28Z   Ready
 ```
@@ -25,14 +25,14 @@ test-hook   8s    2021-10-20T12:26:28Z   Ready
 ```bash
 # bin/apphook quiesce -n test
 
-# kubectl get apphook -n app-hook-operator-system test-hook
+# kubectl get apphook -n amberapp-system test-hook
 test-hook   18m   2021-10-20T12:26:28Z   Quiesced
 ```
 4. Unquiesce DB:
 ```bash
 # bin/apphook unquiesce -n test
 
-# kubectl get apphook -n app-hook-operator-system test-hook
+# kubectl get apphook -n amberapp-system test-hook
 test-hook   18m   2021-10-20T12:26:28Z   Unquiesced
 ```
 5. Delete hook:

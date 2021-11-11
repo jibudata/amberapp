@@ -21,7 +21,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/jibudata/app-hook-operator/controllers/util"
+	"github.com/jibudata/amberapp/controllers/util"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -34,8 +34,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	storagev1alpha1 "github.com/jibudata/app-hook-operator/api/v1alpha1"
-	drivermanager "github.com/jibudata/app-hook-operator/controllers/driver"
+	storagev1alpha1 "github.com/jibudata/amberapp/api/v1alpha1"
+	drivermanager "github.com/jibudata/amberapp/controllers/driver"
 )
 
 const (

@@ -29,10 +29,10 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 
-	"github.com/jibudata/app-hook-operator/api/v1alpha1"
-	"github.com/jibudata/app-hook-operator/pkg/client"
-	"github.com/jibudata/app-hook-operator/pkg/cmd"
-	"github.com/jibudata/app-hook-operator/pkg/util"
+	"github.com/jibudata/amberapp/api/v1alpha1"
+	"github.com/jibudata/amberapp/pkg/client"
+	"github.com/jibudata/amberapp/pkg/cmd"
+	"github.com/jibudata/amberapp/pkg/util"
 )
 
 const (

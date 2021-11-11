@@ -7,11 +7,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
-	storagev1alpha1 "github.com/jibudata/app-hook-operator/api/v1alpha1"
-	"github.com/jibudata/app-hook-operator/pkg/appconfig"
-	"github.com/jibudata/app-hook-operator/pkg/mongo"
-	"github.com/jibudata/app-hook-operator/pkg/mysql"
-	"github.com/jibudata/app-hook-operator/pkg/postgres"
+	storagev1alpha1 "github.com/jibudata/amberapp/api/v1alpha1"
+	"github.com/jibudata/amberapp/pkg/appconfig"
+	"github.com/jibudata/amberapp/pkg/mongo"
+	"github.com/jibudata/amberapp/pkg/mysql"
+	"github.com/jibudata/amberapp/pkg/postgres"
 	corev1 "k8s.io/api/core/v1"
 )
 

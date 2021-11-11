@@ -22,8 +22,8 @@ import (
 
 	"k8s.io/klog"
 
-	"github.com/jibudata/app-hook-operator/pkg/cmd"
-	"github.com/jibudata/app-hook-operator/pkg/cmd/apphook"
+	"github.com/jibudata/amberapp/pkg/cmd"
+	"github.com/jibudata/amberapp/pkg/cmd/apphook"
 )
 
 func main() {

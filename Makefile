@@ -3,9 +3,9 @@ SHELL := /bin/bash
 #REPO = quay.io
 REPO = registry.cn-shanghai.aliyuncs.com
 NAMESPACE = jibudata
-IMG_NAME = app-hook-operator
+IMG_NAME = amberapp
 HOOK_IMG_NAME = app-hook
-VERSION = 0.0.2
+VERSION = 0.0.3
 
 
 CHANNELS="stable-v1"

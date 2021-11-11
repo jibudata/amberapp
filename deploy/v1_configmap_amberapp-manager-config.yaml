@@ -14,5 +14,5 @@ data:
       resourceName: d0f11165.jibudata.com
 kind: ConfigMap
 metadata:
-  name: app-hook-operator-manager-config
-  namespace: app-hook-operator-system
+  name: amberapp-manager-config
+  namespace: amberapp-system

@@ -22,7 +22,7 @@ import (
 	"fmt"
 	"time"
 
-	storagev1alpha1 "github.com/jibudata/app-hook-operator/api/v1alpha1"
+	storagev1alpha1 "github.com/jibudata/amberapp/api/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )

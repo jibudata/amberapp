@@ -2,7 +2,7 @@ apiVersion: v1
 kind: Secret
 metadata:
   name: postgres-secret
-  namespace: app-hook-operator-system
+  namespace: amberapp-system
 type: Opaque
 stringData:
   username: postgresadmin
@@ -12,7 +12,7 @@ apiVersion: storage.jibudata.com/v1alpha1
 kind: AppHook
 metadata:
   name: postgres-sample
-  namespace: app-hook-operator-system
+  namespace: amberapp-system
 spec:
   name: postgres-sample
   appProvider: postgres
@@ -21,4 +21,4 @@ spec:
     - postgresdb
   secret: 
     name: "postgres-secret"
-    namespace: "app-hook-operator-system"
+    namespace: "amberapp-system"

@@ -2,7 +2,7 @@ apiVersion: storage.jibudata.com/v1alpha1
 kind: AppHook
 metadata:
   name: apphook-sample
-  namespace: app-hook-operator-system
+  namespace: amberapp-system
 spec:
   name: apphook-sample
   appProvider: postgres
@@ -11,4 +11,4 @@ spec:
     - postgresdb
   secret: 
     name: "apphook-sample-secret"
-    namespace: "app-hook-operator-system"
+    namespace: "amberapp-system"

@@ -3,8 +3,8 @@ kind: Service
 metadata:
   labels:
     control-plane: controller-manager
-  name: app-hook-operator-controller-manager-metrics-service
-  namespace: app-hook-operator-system
+  name: amberapp-controller-manager-metrics-service
+  namespace: amberapp-system
 spec:
   ports:
   - name: https
