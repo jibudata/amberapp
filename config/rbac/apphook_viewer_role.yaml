@@ -5,7 +5,7 @@ metadata:
   name: apphook-viewer-role
 rules:
 - apiGroups:
-  - storage.jibudata.com
+  - ys.jibudata.com
   resources:
   - apphooks
   verbs:
@@ -13,7 +13,7 @@ rules:
   - list
   - watch
 - apiGroups:
-  - storage.jibudata.com
+  - ys.jibudata.com
   resources:
   - apphooks/status
   verbs:

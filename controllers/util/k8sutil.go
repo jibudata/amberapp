@@ -22,7 +22,7 @@ import (
 	"fmt"
 	"time"
 
-	storagev1alpha1 "github.com/jibudata/amberapp/api/v1alpha1"
+	"github.com/jibudata/amberapp/api/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -64,7 +64,7 @@ func GetLabels(clusterName string) map[string]string {
 	}
 }
 
-func InitK8sEvent(instance *storagev1alpha1.AppHook, eventtype, reason, message string) *corev1.Event {
+func InitK8sEvent(instance *v1alpha1.AppHook, eventtype, reason, message string) *corev1.Event {
 	t := metav1.Time{Time: time.Now()}
 	selectLabels := GetLabels(instance.Name)
 	return &corev1.Event{

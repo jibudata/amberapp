@@ -8,7 +8,7 @@ stringData:
   username: postgresadmin
   password: Test1234
 ---
-apiVersion: storage.jibudata.com/v1alpha1
+apiVersion: ys.jibudata.com/v1alpha1
 kind: AppHook
 metadata:
   name: postgres-sample

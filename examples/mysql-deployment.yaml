@@ -88,13 +88,14 @@ spec:
           initialDelaySeconds: 5
           periodSeconds: 2
           timeoutSeconds: 1
-      - image: registry.cn-shanghai.aliyuncs.com/jibudata/app-hook:0.0.2
-        name: app-hook
-        env:
-        - name: WATCH_NAMESPACE
-          value: amberapp-system
-        securityContext:
-          privileged: true
+      # velero hook need to embed this to app pod
+      #- image: registry.cn-shanghai.aliyuncs.com/jibudata/amberapp:0.0.3
+      #  name: app-hook
+      #  env:
+      #  - name: WATCH_NAMESPACE
+      #    value: amberapp-system
+      #  securityContext:
+      #    privileged: true
       volumes:
       - name: mysql-persistent-storage
         persistentVolumeClaim:

@@ -13,4 +13,4 @@ kind: Kustomization
 images:
 - name: controller
   newName: registry.cn-shanghai.aliyuncs.com/jibudata/amberapp
-  newTag: 0.0.2
+  newTag: 0.0.3

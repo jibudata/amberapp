@@ -16,7 +16,7 @@ limitations under the License.
 package controllers
 
 import (
-	storagev1alpha1 "github.com/jibudata/amberapp/api/v1alpha1"
+	"github.com/jibudata/amberapp/api/v1alpha1"
 	"github.com/jibudata/amberapp/controllers/util"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -31,7 +31,7 @@ const (
 )
 
 func InitHookDeployment(
-	instance *storagev1alpha1.AppHook,
+	instance *v1alpha1.AppHook,
 	secret *corev1.Secret) (*appsv1.Deployment, error) {
 
 	var replicaOne int32 = 1

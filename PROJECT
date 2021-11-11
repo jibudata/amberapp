@@ -12,7 +12,7 @@ resources:
     namespaced: true
   controller: true
   domain: jibudata.com
-  group: storage
+  group: ys
   kind: AppHook
   path: github.com/jibudata/amberapp/api/v1alpha1
   version: v1alpha1

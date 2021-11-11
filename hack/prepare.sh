@@ -1,4 +1,8 @@
 #!/bin/bash
+# This is only for velero hook integration, which needs to add annotations to 
+# application pod, to specify hook container and commands.
+# As the apphook binary is executing inside application pod, we need a way to
+# apply required cluster role to the command, which need the hack below.
 
 if [ "$#" -ne 4 ]; then
     echo "Illegal number of parameters"
@@ -30,6 +34,8 @@ echo "endpoint name: $endpoint"
 
 echo "create hook"
 apphook create -n $hookname -a mysql -e $endpoint -u root -p passw0rd --databases $dbname
+
+# Hack: copy the root config to the container
 kubectl cp ~/.kube/config -n $namespace -c app-hook $podname:/root/
 
 echo "annotate pod"

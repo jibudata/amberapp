@@ -34,12 +34,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	storagev1alpha1 "github.com/jibudata/amberapp/api/v1alpha1"
+	"github.com/jibudata/amberapp/api/v1alpha1"
 	drivermanager "github.com/jibudata/amberapp/controllers/driver"
 )
 
 const (
-	HasStopWatchAnnotation = "apphooks.storage.jibudata.com/stop-watch"
+	HasStopWatchAnnotation = "apphooks.ys.jibudata.com/stop-watch"
 )
 
 // AppHookReconciler reconciles a AppHook object
@@ -49,9 +49,9 @@ type AppHookReconciler struct {
 	AppMap map[string]*drivermanager.DriverManager
 }
 
-//+kubebuilder:rbac:groups=storage.jibudata.com,resources=apphooks,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=storage.jibudata.com,resources=apphooks/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=storage.jibudata.com,resources=apphooks/finalizers,verbs=update
+//+kubebuilder:rbac:groups=ys.jibudata.com,resources=apphooks,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=ys.jibudata.com,resources=apphooks/status,verbs=get;update;patch
+//+kubebuilder:rbac:groups=ys.jibudata.com,resources=apphooks/finalizers,verbs=update
 //+kubebuilder:rbac:groups=core,resources=secrets,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;patch;delete
 
@@ -59,7 +59,7 @@ func (r *AppHookReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	_ = log.FromContext(ctx)
 
 	// your logic here
-	instance := &storagev1alpha1.AppHook{}
+	instance := &v1alpha1.AppHook{}
 	if getInstanceErr := r.Get(ctx, req.NamespacedName, instance); getInstanceErr != nil {
 		if errors.IsNotFound(getInstanceErr) {
 			log.Log.Info("No apphook instance found")
@@ -78,9 +78,9 @@ func (r *AppHookReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	}
 }
 
-func (r *AppHookReconciler) reconcile(instance *storagev1alpha1.AppHook) (ctrl.Result, error) {
+func (r *AppHookReconciler) reconcile(instance *v1alpha1.AppHook) (ctrl.Result, error) {
 	var err error
-	var apphookFinalizer = "apphook.storage.jibudata.com"
+	var apphookFinalizer = "apphook.ys.jibudata.com"
 
 	// Check GetDeletionTimestamp to determine if the object is under deletion
 	if instance.GetDeletionTimestamp().IsZero() {
@@ -130,7 +130,7 @@ func (r *AppHookReconciler) reconcile(instance *storagev1alpha1.AppHook) (ctrl.R
 // SetupWithManager sets up the controller with the Manager.
 func (r *AppHookReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	predicateFunc := func(obj runtime.Object) bool {
-		instance, ok := obj.(*storagev1alpha1.AppHook)
+		instance, ok := obj.(*v1alpha1.AppHook)
 		if !ok {
 			return false
 		}
@@ -158,11 +158,11 @@ func (r *AppHookReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		},
 	}
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&storagev1alpha1.AppHook{}, builder.WithPredicates(appHookCRPredicate)).
+		For(&v1alpha1.AppHook{}, builder.WithPredicates(appHookCRPredicate)).
 		Complete(r)
 }
 
-func (r *AppHookReconciler) ensureHookOperation(instance *storagev1alpha1.AppHook) error {
+func (r *AppHookReconciler) ensureHookOperation(instance *v1alpha1.AppHook) error {
 	appSecret := &corev1.Secret{}
 	err := r.Client.Get(
 		context.TODO(),
@@ -184,42 +184,42 @@ func (r *AppHookReconciler) ensureHookOperation(instance *storagev1alpha1.AppHoo
 	}
 	// check operation type
 	if instance.Spec.OperationType == "" { // new CR
-		if instance.Status.Phase != storagev1alpha1.HookReady {
-			instance.Status.Phase = storagev1alpha1.HookCreated
+		if instance.Status.Phase != v1alpha1.HookReady {
+			instance.Status.Phase = v1alpha1.HookCreated
 			// connect to database to check status
 			err = mgr.DBConnect()
 			if err != nil {
 				log.Log.Error(err, fmt.Sprintf("failed to connect database for %s", instance.Name))
-				instance.Status.Phase = storagev1alpha1.HookNotReady
+				instance.Status.Phase = v1alpha1.HookNotReady
 			} else {
 				log.Log.Info(fmt.Sprintf("hook for %s is ready", instance.Name))
-				instance.Status.Phase = storagev1alpha1.HookReady
+				instance.Status.Phase = v1alpha1.HookReady
 			}
 		}
-	} else if strings.EqualFold(instance.Spec.OperationType, storagev1alpha1.QUIESCE) {
-		if instance.Status.Phase != storagev1alpha1.HookQUIESCED {
+	} else if strings.EqualFold(instance.Spec.OperationType, v1alpha1.QUIESCE) {
+		if instance.Status.Phase != v1alpha1.HookQUIESCED {
 			// quiesce database
 			log.Log.Info(fmt.Sprintf("quiesce for %s in progress", instance.Name))
 			err = mgr.DBQuiesce()
 			if err != nil {
 				log.Log.Error(err, fmt.Sprintf("failed to quiesce database for %s", instance.Name))
-				instance.Status.Phase = storagev1alpha1.HookQUIESCEINPROGRESS
+				instance.Status.Phase = v1alpha1.HookQUIESCEINPROGRESS
 			} else {
 				log.Log.Info(fmt.Sprintf("successfully quiesce for %s", instance.Name))
-				instance.Status.Phase = storagev1alpha1.HookQUIESCED
+				instance.Status.Phase = v1alpha1.HookQUIESCED
 			}
 		}
-	} else if strings.EqualFold(instance.Spec.OperationType, storagev1alpha1.UNQUIESCE) {
-		if instance.Status.Phase != storagev1alpha1.HookUNQUIESCED {
+	} else if strings.EqualFold(instance.Spec.OperationType, v1alpha1.UNQUIESCE) {
+		if instance.Status.Phase != v1alpha1.HookUNQUIESCED {
 			// unquiesce database
 			log.Log.Info(fmt.Sprintf("unquiesce for %s in progress", instance.Name))
 			err = mgr.DBUnquiesce()
 			if err != nil {
 				log.Log.Error(err, fmt.Sprintf("failed to unquiesce database for %s", instance.Name))
-				instance.Status.Phase = storagev1alpha1.HookUNQUIESCEINPROGRESS
+				instance.Status.Phase = v1alpha1.HookUNQUIESCEINPROGRESS
 			} else {
 				log.Log.Info(fmt.Sprintf("successfully unquiesce for %s", instance.Name))
-				instance.Status.Phase = storagev1alpha1.HookUNQUIESCED
+				instance.Status.Phase = v1alpha1.HookUNQUIESCED
 			}
 		}
 	} else {
@@ -236,11 +236,11 @@ func (r *AppHookReconciler) ensureHookOperation(instance *storagev1alpha1.AppHoo
 	return nil
 }
 
-func (r *AppHookReconciler) ensureRemoveHook(instance *storagev1alpha1.AppHook) error {
+func (r *AppHookReconciler) ensureRemoveHook(instance *v1alpha1.AppHook) error {
 	return r.deleteDriverManager(instance)
 }
 
-func (r *AppHookReconciler) getDriverManager(instance *storagev1alpha1.AppHook, appSecret *corev1.Secret) (*drivermanager.DriverManager, error) {
+func (r *AppHookReconciler) getDriverManager(instance *v1alpha1.AppHook, appSecret *corev1.Secret) (*drivermanager.DriverManager, error) {
 	// lookup map
 	if r.AppMap[instance.Name] == nil {
 		// if not exist, create new drivermanager
@@ -256,7 +256,7 @@ func (r *AppHookReconciler) getDriverManager(instance *storagev1alpha1.AppHook, 
 	return r.AppMap[instance.Name], nil
 }
 
-func (r *AppHookReconciler) deleteDriverManager(instance *storagev1alpha1.AppHook) error {
+func (r *AppHookReconciler) deleteDriverManager(instance *v1alpha1.AppHook) error {
 	// lookup map
 	if r.AppMap[instance.Name] != nil {
 		// if exist, delete drivermanager
