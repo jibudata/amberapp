@@ -7,11 +7,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
-	storagev1alpha1 "github.com/jibudata/app-hook-operator/api/v1alpha1"
-	"github.com/jibudata/app-hook-operator/pkg/appconfig"
-	"github.com/jibudata/app-hook-operator/pkg/mongo"
-	"github.com/jibudata/app-hook-operator/pkg/mysql"
-	"github.com/jibudata/app-hook-operator/pkg/postgres"
+	v1alpha1 "github.com/jibudata/amberapp/api/v1alpha1"
+	"github.com/jibudata/amberapp/pkg/appconfig"
+	"github.com/jibudata/amberapp/pkg/mongo"
+	"github.com/jibudata/amberapp/pkg/mysql"
+	"github.com/jibudata/amberapp/pkg/postgres"
 	corev1 "k8s.io/api/core/v1"
 )
 
@@ -39,7 +39,7 @@ type DriverManager struct {
 	appConfig appconfig.Config
 }
 
-func NewManager(k8sclient client.Client, instance *storagev1alpha1.AppHook, secret *corev1.Secret) (*DriverManager, error) {
+func NewManager(k8sclient client.Client, instance *v1alpha1.AppHook, secret *corev1.Secret) (*DriverManager, error) {
 	var CacheManager DriverManager
 	var err error
 	CacheManager.Client = k8sclient

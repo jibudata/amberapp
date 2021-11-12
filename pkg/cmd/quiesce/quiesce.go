@@ -27,10 +27,10 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 
-	"github.com/jibudata/app-hook-operator/api/v1alpha1"
-	"github.com/jibudata/app-hook-operator/pkg/client"
-	"github.com/jibudata/app-hook-operator/pkg/cmd"
-	"github.com/jibudata/app-hook-operator/pkg/util"
+	"github.com/jibudata/amberapp/api/v1alpha1"
+	"github.com/jibudata/amberapp/pkg/client"
+	"github.com/jibudata/amberapp/pkg/cmd"
+	"github.com/jibudata/amberapp/pkg/util"
 )
 
 const (
@@ -169,14 +169,17 @@ func (q *QuiesceOptions) Run(kubeclient *client.Client) error {
 	}
 
 	if q.Wait {
+		startTime := time.Now()
 		fmt.Printf("Waiting for db get quiesced: %s, namespace: %s\n", crName, namespace)
 		err, done := q.waitUntilQuiesced(kubeclient, namespace)
+		doneTime := time.Now()
+		duration := doneTime.Sub(startTime)
 		if err != nil {
 			fmt.Printf("wait for hook into quiesced state error: %s, namespace: %s\n", crName, namespace)
 			return err
 		}
 		if done {
-			fmt.Printf("Database is successfully quiesced: %s, namespace: %s\n", crName, namespace)
+			fmt.Printf("Database is successfully quiesced: %s, namespace: %s, duration: %s\n", crName, namespace, duration)
 		}
 	}
 

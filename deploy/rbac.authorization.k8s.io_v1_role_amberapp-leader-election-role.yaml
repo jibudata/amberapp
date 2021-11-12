@@ -1,8 +1,8 @@
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
-  name: app-hook-operator-leader-election-role
-  namespace: app-hook-operator-system
+  name: amberapp-leader-election-role
+  namespace: amberapp-system
 rules:
 - apiGroups:
   - ""

@@ -3,8 +3,9 @@ SHELL := /bin/bash
 #REPO = quay.io
 REPO = registry.cn-shanghai.aliyuncs.com
 NAMESPACE = jibudata
-IMG_NAME = app-hook-operator
-VERSION = 0.0.1
+IMG_NAME = amberapp
+HOOK_IMG_NAME = app-hook
+VERSION = 0.0.3
 
 
 CHANNELS="stable-v1"
@@ -28,6 +29,9 @@ BUNDLE_METADATA_OPTS ?= $(BUNDLE_CHANNELS) $(BUNDLE_DEFAULT_CHANNEL)
 IMAGE_TAG_BASE = $(REPO)/$(NAMESPACE)/$(IMG_NAME)
 IMG = $(IMAGE_TAG_BASE):$(VERSION)
 BUNDLE_IMG = $(IMAGE_TAG_BASE)-bundle:$(VERSION)
+
+HOOK_IMAGE_TAG_BASE = $(REPO)/$(NAMESPACE)/$(HOOK_IMG_NAME)
+HOOK_IMG = $(HOOK_IMAGE_TAG_BASE):$(VERSION)
 
 # Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
 CRD_OPTIONS ?= "crd:trivialVersions=true,preserveUnknownFields=false"
@@ -95,10 +99,17 @@ docker-build: test ## Build docker image with the manager.
 docker-push: ## Push docker image with the manager.
 	docker push ${IMG}
 
+docker-build-hook-image: test ## Build docker image with the manager.
+	docker build -f Dockerfile.hook -t ${HOOK_IMG} .
+
+docker-push-hook-image: ## Push docker image with the manager.
+	docker push ${HOOK_IMG}
+
 ##@ Deployment
 
 install: manifests kustomize ## Install CRDs into the K8s cluster specified in ~/.kube/config.
 	$(KUSTOMIZE) build config/crd | kubectl apply -f -
+	cp bin/apphook /usr/local/go/bin/
 
 uninstall: manifests kustomize ## Uninstall CRDs from the K8s cluster specified in ~/.kube/config.
 	$(KUSTOMIZE) build config/crd | kubectl delete -f -

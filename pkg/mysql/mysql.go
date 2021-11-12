@@ -6,7 +6,7 @@ import (
 	"time"
 
 	_ "github.com/go-sql-driver/mysql"
-	"github.com/jibudata/app-hook-operator/pkg/appconfig"
+	"github.com/jibudata/amberapp/pkg/appconfig"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 

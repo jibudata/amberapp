@@ -31,7 +31,7 @@ rules:
   - update
   - watch
 - apiGroups:
-  - storage.jibudata.com
+  - ys.jibudata.com
   resources:
   - apphooks
   verbs:
@@ -43,13 +43,13 @@ rules:
   - update
   - watch
 - apiGroups:
-  - storage.jibudata.com
+  - ys.jibudata.com
   resources:
   - apphooks/finalizers
   verbs:
   - update
 - apiGroups:
-  - storage.jibudata.com
+  - ys.jibudata.com
   resources:
   - apphooks/status
   verbs:

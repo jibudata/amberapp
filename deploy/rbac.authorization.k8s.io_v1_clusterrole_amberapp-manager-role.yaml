@@ -2,7 +2,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   creationTimestamp: null
-  name: app-hook-operator-manager-role
+  name: amberapp-manager-role
 rules:
 - apiGroups:
   - apps
@@ -29,7 +29,7 @@ rules:
   - update
   - watch
 - apiGroups:
-  - storage.jibudata.com
+  - ys.jibudata.com
   resources:
   - apphooks
   verbs:
@@ -41,13 +41,13 @@ rules:
   - update
   - watch
 - apiGroups:
-  - storage.jibudata.com
+  - ys.jibudata.com
   resources:
   - apphooks/finalizers
   verbs:
   - update
 - apiGroups:
-  - storage.jibudata.com
+  - ys.jibudata.com
   resources:
   - apphooks/status
   verbs:
