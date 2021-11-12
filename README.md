@@ -1,9 +1,16 @@
-# amberapp
-Kubernetes application backup hook, which can do quiesce and unquiesce of databases during application backup
+# AmberApp
+AmberApp is a K8s native framework for application consistency that can work together with Velero and other backup solutions. 
+
+![](https://gitee.com/jibutech/tech-docs/raw/master/images/amberapp-architecture.png)
 
 ## Installation
-1. Download the yaml file in deploy folder
-2. kubectl apply -f deploy
+1. Clone the repo
+
+    `git clone git@github.com:jibudata/amberapp.git`
+
+2. Enter the repo and run
+
+    `kubectl apply -f deploy`
 
 ## Supported databases
 1. PostgreSQL
@@ -23,7 +30,7 @@ test-hook   8s    2021-10-20T12:26:28Z   Ready
 ```
 3. Quiesce DB:
 ```bash
-# bin/apphook quiesce -n test
+# bin/apphook quiesce -n test -w
 
 # kubectl get apphook -n amberapp-system test-hook
 test-hook   18m   2021-10-20T12:26:28Z   Quiesced
@@ -41,9 +48,9 @@ test-hook   18m   2021-10-20T12:26:28Z   Unquiesced
 ```
 
 ### Use CR
-There are supported database CR samples in folder examples
+Other backup solution can use CR for API level integration with AmberApp, below are CR details.
 
-#### appHook CR spec 
+#### CR spec 
 
 | Param | Type | Supported values | Description |
 | ----------- | ----------- | ----------- | ----------- |
@@ -65,3 +72,4 @@ There are supported database CR samples in folder examples
 | Quiesced | databases are successfully quiesced|
 | Unquiesce In Progress | driver is trying to unquiesce database|
 | Unquiesced | databases are successfully unquiesced|
+
