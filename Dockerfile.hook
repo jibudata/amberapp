@@ -35,6 +35,7 @@ FROM centos:7
 
 WORKDIR /
 COPY --from=builder /workspace/apphook .
+COPY --from=builder /workspace/hack/create.sh .
 COPY --from=builder /workspace/hack/quiesce.sh .
 COPY --from=builder /workspace/hack/unquiesce.sh .
 
