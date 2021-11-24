@@ -12,7 +12,8 @@ COPY go.sum go.sum
 # and so that source changes don't invalidate our downloaded layer
 RUN go mod download
 # Copy the go source
-COPY cmd/main.go cmd/main.go
+COPY cmd/apphook/main.go cmd/apphook/main.go
+COPY cmd/mysql_demo/main.go cmd/mysql_demo/main.go
 COPY api/ api/
 #COPY controllers/ controllers/
 COPY pkg/ pkg/
@@ -22,7 +23,8 @@ COPY hack/ hack/
 
 # Build
 ENV BUILDTAGS containers_image_ostree_stub exclude_graphdriver_devicemapper exclude_graphdriver_btrfs containers_image_openpgp exclude_graphdriver_overlay
-RUN CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build -tags "$BUILDTAGS" -a -o apphook cmd/main.go
+RUN CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build -tags "$BUILDTAGS" -a -o apphook cmd/apphook/main.go
+RUN CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build -tags "$BUILDTAGS" -a -o mysqlops cmd/mysql_demo/main.go
 
 # Use distroless as minimal base image to package the manager binary
 # Refer to https://github.com/GoogleContainerTools/distroless for more details
@@ -35,8 +37,9 @@ FROM centos:7
 
 WORKDIR /
 COPY --from=builder /workspace/apphook .
+COPY --from=builder /workspace/mysqlops .
 COPY --from=builder /workspace/hack/create.sh .
 COPY --from=builder /workspace/hack/quiesce.sh .
 COPY --from=builder /workspace/hack/unquiesce.sh .
 
-ENTRYPOINT ["/bin/sleep", "3600"]
+ENTRYPOINT ["/bin/sleep", "infinity"]
