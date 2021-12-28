@@ -2,18 +2,18 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   labels:
-    control-plane: controller-manager
+    control-plane: amberapp-controller-manager
   name: amberapp-controller-manager
   namespace: amberapp-system
 spec:
   replicas: 1
   selector:
     matchLabels:
-      control-plane: controller-manager
+      control-plane: amberapp-controller-manager
   template:
     metadata:
       labels:
-        control-plane: controller-manager
+        control-plane: amberapp-controller-manager
     spec:
       containers:
       - args:

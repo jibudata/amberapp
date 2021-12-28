@@ -20,11 +20,13 @@ AmberApp is a K8s native framework for application consistency that can work tog
 ## Usage
 ### CLI example
 1. Clone repo, do install as above, run `make` to build binaries
-2. Create an hook to MySQL database:
+2. Deploy an example application: wordpress, refer to https://github.com/jibutech/docs/tree/main/examples/workload/wordpress
+3. Create an hook to MySQL database. NOTE: use `WATCH_NAMESPACE` to specify the namespace where amberapp operator is installed.
 ```bash
+# export WATCH_NAMESPACE=amberapp-system
 # bin/apphook create -n test -a mysql -e "wordpress-mysql.wordpress" -u root -p passw0rd --databases mysql
 
-# kubectl get apphook -n amberapp-system test-hook
+# kubectl get apphooks.ys.jibudata.com -n amberapp-system test-hook
 NAME        AGE   CREATED AT             PHASE
 test-hook   8s    2021-10-20T12:26:28Z   Ready
 ```
@@ -32,14 +34,14 @@ test-hook   8s    2021-10-20T12:26:28Z   Ready
 ```bash
 # bin/apphook quiesce -n test -w
 
-# kubectl get apphook -n amberapp-system test-hook
+# kubectl get apphooks.ys.jibudata.com -n amberapp-system test-hook
 test-hook   18m   2021-10-20T12:26:28Z   Quiesced
 ```
 4. Unquiesce DB:
 ```bash
 # bin/apphook unquiesce -n test
 
-# kubectl get apphook -n amberapp-system test-hook
+# kubectl get apphooks.ys.jibudata.com -n amberapp-system test-hook
 test-hook   18m   2021-10-20T12:26:28Z   Unquiesced
 ```
 5. Delete hook:

@@ -5,7 +5,7 @@ REPO = registry.cn-shanghai.aliyuncs.com
 NAMESPACE = jibudata
 IMG_NAME = amberapp
 HOOK_IMG_NAME = app-hook
-VERSION = 0.0.4
+VERSION ?= $(shell git rev-parse --abbrev-ref HEAD).$(shell git rev-parse --short HEAD)
 
 
 CHANNELS="stable-v1"
@@ -119,6 +119,12 @@ deploy: manifests kustomize ## Deploy controller to the K8s cluster specified in
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
 	$(KUSTOMIZE) build config/default | kubectl apply -f -
 
+ys1000-deploy: manifests kustomize ## Deploy controller to the K8s cluster specified in ~/.kube/config.
+	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
+	cd config/manager && $(KUSTOMIZE) edit set namespace qiming-backend
+	cd config/default && $(KUSTOMIZE) edit set namespace qiming-backend
+	$(KUSTOMIZE) build config/default > deploy/ys1000/deployments.yaml
+	
 undeploy: ## Undeploy controller from the K8s cluster specified in ~/.kube/config.
 	$(KUSTOMIZE) build config/default | kubectl delete -f -
 
