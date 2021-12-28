@@ -5,7 +5,7 @@ REPO = registry.cn-shanghai.aliyuncs.com
 NAMESPACE = jibudata
 IMG_NAME = amberapp
 HOOK_IMG_NAME = app-hook
-VERSION = 0.0.3
+VERSION = 0.0.4
 
 
 CHANNELS="stable-v1"
@@ -88,7 +88,8 @@ test: manifests generate fmt vet envtest ## Run tests.
 
 build: generate fmt vet ## Build manager binary.
 	go build -o bin/manager main.go
-	go build -o bin/apphook cmd/main.go
+	go build -o bin/apphook cmd/apphook/main.go
+	go build -o bin/mysqlops cmd/mysql_demo/main.go
 
 run: manifests generate fmt vet ## Run a controller from your host.
 	go run ./main.go

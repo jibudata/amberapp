@@ -1,0 +1,34 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: controller-manager
+  name: amberapp-mysql-demo
+  namespace: amberapp-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mysql-demo
+  template:
+    metadata:
+      labels:
+        app: mysql-demo
+    spec:
+      containers:
+      - image: registry.cn-shanghai.aliyuncs.com/jibudata/app-hook:0.0.4
+        name: hook-runner
+        env:
+        - name: WATCH_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        resources:
+          limits:
+            cpu: 100m
+            memory: 30Mi
+          requests:
+            cpu: 100m
+            memory: 20Mi
+      serviceAccountName: amberapp-controller-manager
+      terminationGracePeriodSeconds: 10
