@@ -341,7 +341,7 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.namespace
-        image: registry.cn-shanghai.aliyuncs.com/jibudata/amberapp:ys1000_int.76d2fbd
+        image: registry.cn-shanghai.aliyuncs.com/jibudata/amberapp:0.0.4
         name: manager
         resources:
           limits:
