@@ -1,0 +1,45 @@
+architecture: replication
+
+auth:
+  rootPassword: "randompassw0rd"
+  replicationUser: replicator
+  replicationPassword: "randompassw0rd"
+
+primary:
+  extraEnvVars:
+   - name: TZ
+     value: "Asia/Shanghai"
+
+  extraFlags: "--innodb-doublewrite=OFF"
+
+  persistence:
+    enabled: true
+    storageClass: "managed-nfs-storage"
+    accessModes:
+      - ReadWriteOnce
+    size: 10Gi
+
+secondary:
+  replicaCount: 1
+  extraEnvVars:
+   - name: TZ
+     value: "Asia/Shanghai"
+
+  extraFlags: "--innodb-doublewrite=OFF"
+
+  persistence:
+    enabled: true
+    storageClass: "managed-nfs-storage"
+    accessModes:
+      - ReadWriteOnce
+    size: 10Gi
+
+volumePermissions:
+  enabled: true
+
+metrics:
+  enabled: false
+  serviceMonitor:
+    enabled: false
+    additionalLabels:
+      monitoring.supremind.com: 'true'

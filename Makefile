@@ -5,8 +5,9 @@ REPO = registry.cn-shanghai.aliyuncs.com
 NAMESPACE = jibudata
 IMG_NAME = amberapp
 HOOK_IMG_NAME = app-hook
-VERSION = 0.0.4
-
+VERSION ?= $(shell git rev-parse --abbrev-ref HEAD).$(shell git rev-parse --short HEAD)
+DEFAULT_DEPLOY_NS = amberapp-system
+JIBU_DEPLOY_NS = qiming-backend
 
 CHANNELS="stable-v1"
 DEFAULT_CHANNEL="stable-v1"
@@ -115,16 +116,23 @@ install: manifests kustomize ## Install CRDs into the K8s cluster specified in ~
 uninstall: manifests kustomize ## Uninstall CRDs from the K8s cluster specified in ~/.kube/config.
 	$(KUSTOMIZE) build config/crd | kubectl delete -f -
 
-deploy: manifests kustomize ## Deploy controller to the K8s cluster specified in ~/.kube/config.
+deploy: manifests kustomize set-default-ns## Deploy controller to the K8s cluster specified in ~/.kube/config.
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
 	$(KUSTOMIZE) build config/default | kubectl apply -f -
 
+ys1000-deploy: manifests kustomize set-jibudata-ns## Deploy controller to the K8s cluster specified in ~/.kube/config.
+	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
+	$(KUSTOMIZE) build config/default > deploy/ys1000/deployments.yaml
+	
 undeploy: ## Undeploy controller from the K8s cluster specified in ~/.kube/config.
 	$(KUSTOMIZE) build config/default | kubectl delete -f -
 
-generate-deployment: ## generate installation crd and deployment
+generate-deployment: set-default-ns ## generate installation crd and deployment
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
+	rm -rf deploy && mkdir deploy && mkdir deploy/ys1000
 	$(KUSTOMIZE) build config/default -o deploy/
+
+generate-all: build manifests generate-deployment ys1000-deploy
 
 CONTROLLER_GEN = $(shell pwd)/bin/controller-gen
 controller-gen: ## Download controller-gen locally if necessary.
@@ -138,6 +146,14 @@ ENVTEST = $(shell pwd)/bin/setup-envtest
 envtest: ## Download envtest-setup locally if necessary.
 	$(call go-get-tool,$(ENVTEST),sigs.k8s.io/controller-runtime/tools/setup-envtest@latest)
 	$(ENVTEST) use 1.21
+
+set-default-ns:
+	cd config/manager && $(KUSTOMIZE) edit set namespace ${DEFAULT_DEPLOY_NS}
+	cd config/default && $(KUSTOMIZE) edit set namespace ${DEFAULT_DEPLOY_NS}
+
+set-jibudata-ns:
+	cd config/manager && $(KUSTOMIZE) edit set namespace ${JIBU_DEPLOY_NS}
+	cd config/default && $(KUSTOMIZE) edit set namespace ${JIBU_DEPLOY_NS}
 
 # go-get-tool will 'go get' any package $2 and install it to $1.
 PROJECT_DIR := $(shell dirname $(abspath $(lastword $(MAKEFILE_LIST))))
