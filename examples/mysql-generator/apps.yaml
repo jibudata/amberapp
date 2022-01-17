@@ -1,0 +1,133 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: mysql-generator
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: autotest-mysql
+  namespace: mysql-generator
+  labels:
+    app: autotest
+spec:
+  ports:
+    - port: 3306
+  selector:
+    app: autotest
+    tier: mysql
+  clusterIP: None
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mysql-pv-claim
+  namespace: mysql-generator
+  labels:
+    app: autotest
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: managed-nfs-storage
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: autotest-mysql
+  namespace: mysql-generator
+  labels:
+    app: autotest
+spec:
+  selector:
+    matchLabels:
+      app: autotest
+      tier: mysql
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: autotest
+        tier: mysql
+    #annotations:
+    #    pre.hook.backup.velero.io/container: app-hook
+    #    pre.hook.backup.velero.io/command: '["/quiesce.sh"]'
+    #    post.hook.backup.velero.io/container: app-hook
+    #    post.hook.backup.velero.io/command: '["/unquiesce.sh"]'
+    spec:
+      containers:
+      #- image: registry.cn-shanghai.aliyuncs.com/jibudata/app-hook:add-velero-example-latest
+      #  name: app-hook
+      #  env:
+      #  - name: NAMESPACE
+      #    valueFrom:
+      #      fieldRef:
+      #        fieldPath: metadata.namespace
+      #  - name: APP_NAME
+      #    value: autotest
+      #  - name: WATCH_NAMESPACE
+      #    value: app-hook-operator-system
+      #  securityContext:
+      #    privileged: true 
+      - image: mysql:5.7
+        name: mysql
+        env:
+        - name: MYSQL_ROOT_PASSWORD
+          value: password
+        ports:
+        - containerPort: 3306
+          name: mysql
+        volumeMounts:
+        - name: mysql-persistent-storage
+          mountPath: /var/lib/mysql
+      volumes:
+      - name: mysql-persistent-storage
+        persistentVolumeClaim:
+          claimName: mysql-pv-claim
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: autotest-deployment
+  namespace: mysql-generator
+  labels:
+    app: autotestapp
+spec:
+  selector:
+    matchLabels:
+      app: autotestapp
+  template:
+    metadata:
+      labels:
+        app: autotestapp
+    spec:
+      initContainers:
+      - name: init-mysql
+        image: busybox:latest
+        command: ['sh', '-c', 'echo -e "Checking MySQL"; while ! nc -z autotest-mysql 3306; do sleep 1; printf "-"; done; echo -e "  >> MySQL started";']
+      containers:
+      - name: autotestapp
+        image: jibutech/app-test:main-latest
+        ports:
+        - containerPort: 80
+        env:
+        - name: AUTO_TEST_HOST
+          value: autotest-mysql
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: rest-svc
+  namespace: mysql-generator
+spec:
+  ports:
+    - nodePort: 30176
+      protocol: TCP
+      port: 2581
+      targetPort: 2581
+  selector:
+    app: autotestapp
+  type: NodePort
