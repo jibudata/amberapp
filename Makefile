@@ -132,7 +132,7 @@ generate-deployment: set-default-ns ## generate installation crd and deployment
 	rm -rf deploy && mkdir deploy && mkdir deploy/ys1000
 	$(KUSTOMIZE) build config/default -o deploy/
 
-generate-all: build manifests generate-deployment ys1000-deploy
+generate-all: build manifests kustomize generate-deployment ys1000-deploy
 
 CONTROLLER_GEN = $(shell pwd)/bin/controller-gen
 controller-gen: ## Download controller-gen locally if necessary.
