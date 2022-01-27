@@ -38,7 +38,7 @@ func (pg *PG) Connect() error {
 
 		err = pg.db.Ping()
 		if err != nil {
-			log.Log.Error(err, "cannot connect to postgres database %s", pg.config.Databases[i])
+			log.Log.Error(err, fmt.Sprintf("cannot connect to postgres database %s", pg.config.Databases[i]))
 			return err
 		}
 		pg.db.Close()
