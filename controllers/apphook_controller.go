@@ -198,28 +198,42 @@ func (r *AppHookReconciler) ensureHookOperation(instance *v1alpha1.AppHook) erro
 		}
 	} else if strings.EqualFold(instance.Spec.OperationType, v1alpha1.QUIESCE) {
 		if instance.Status.Phase != v1alpha1.HookQUIESCED {
-			// quiesce database
-			log.Log.Info(fmt.Sprintf("quiesce for %s in progress", instance.Name))
-			err = mgr.DBQuiesce()
+			// connect to database to check status
+			err = mgr.DBConnect()
 			if err != nil {
-				log.Log.Error(err, fmt.Sprintf("failed to quiesce database for %s", instance.Name))
-				instance.Status.Phase = v1alpha1.HookQUIESCEINPROGRESS
+				log.Log.Error(err, fmt.Sprintf("failed to connect database for %s", instance.Name))
+				instance.Status.Phase = v1alpha1.HookNotReady
 			} else {
-				log.Log.Info(fmt.Sprintf("successfully quiesce for %s", instance.Name))
-				instance.Status.Phase = v1alpha1.HookQUIESCED
+				// quiesce database
+				log.Log.Info(fmt.Sprintf("quiesce for %s in progress", instance.Name))
+				err = mgr.DBQuiesce()
+				if err != nil {
+					log.Log.Error(err, fmt.Sprintf("failed to quiesce database for %s", instance.Name))
+					instance.Status.Phase = v1alpha1.HookQUIESCEINPROGRESS
+				} else {
+					log.Log.Info(fmt.Sprintf("successfully quiesce for %s", instance.Name))
+					instance.Status.Phase = v1alpha1.HookQUIESCED
+				}
 			}
 		}
 	} else if strings.EqualFold(instance.Spec.OperationType, v1alpha1.UNQUIESCE) {
 		if instance.Status.Phase != v1alpha1.HookUNQUIESCED {
-			// unquiesce database
-			log.Log.Info(fmt.Sprintf("unquiesce for %s in progress", instance.Name))
-			err = mgr.DBUnquiesce()
+			// connect to database to check status
+			err = mgr.DBConnect()
 			if err != nil {
-				log.Log.Error(err, fmt.Sprintf("failed to unquiesce database for %s", instance.Name))
-				instance.Status.Phase = v1alpha1.HookUNQUIESCEINPROGRESS
+				log.Log.Error(err, fmt.Sprintf("failed to connect database for %s", instance.Name))
+				instance.Status.Phase = v1alpha1.HookNotReady
 			} else {
-				log.Log.Info(fmt.Sprintf("successfully unquiesce for %s", instance.Name))
-				instance.Status.Phase = v1alpha1.HookUNQUIESCED
+				// unquiesce database
+				log.Log.Info(fmt.Sprintf("unquiesce for %s in progress", instance.Name))
+				err = mgr.DBUnquiesce()
+				if err != nil {
+					log.Log.Error(err, fmt.Sprintf("failed to unquiesce database for %s", instance.Name))
+					instance.Status.Phase = v1alpha1.HookUNQUIESCEINPROGRESS
+				} else {
+					log.Log.Info(fmt.Sprintf("successfully unquiesce for %s", instance.Name))
+					instance.Status.Phase = v1alpha1.HookUNQUIESCED
+				}
 			}
 		}
 	} else {
