@@ -24,6 +24,7 @@ spec:
             fieldRef:
               fieldPath: metadata.namespace
         image: registry.cn-shanghai.aliyuncs.com/jibudata/amberapp:0.0.4
+        imagePullPolicy: Always
         name: manager
         resources:
           limits:
