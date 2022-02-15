@@ -247,7 +247,7 @@ func (r *AppHookReconciler) ensureHookOperation(instance *v1alpha1.AppHook) erro
 		return statusError
 	}
 
-	return nil
+	return err
 }
 
 func (r *AppHookReconciler) ensureRemoveHook(instance *v1alpha1.AppHook) error {
