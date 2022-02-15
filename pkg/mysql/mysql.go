@@ -129,7 +129,7 @@ func (m *MYSQL) Unquiesce() error {
 		return err
 	}
 
-	m.mysqlUnlock()
+	go m.mysqlUnlock()
 	// check there are quiescing ongoing
 	for i := 0; i < sqlOperationTimeout; i++ {
 		time.Sleep(1 * time.Second)
