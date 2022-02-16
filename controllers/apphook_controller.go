@@ -265,6 +265,13 @@ func (r *AppHookReconciler) getDriverManager(instance *v1alpha1.AppHook, appSecr
 		}
 		// cache the drivermanager
 		r.AppMap[instance.Name] = mgr
+		return r.AppMap[instance.Name], nil
+	}
+
+	// check for update
+	err := r.AppMap[instance.Name].Update(instance, appSecret)
+	if err != nil {
+		return nil, err
 	}
 
 	return r.AppMap[instance.Name], nil

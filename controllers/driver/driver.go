@@ -8,6 +8,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	v1alpha1 "github.com/jibudata/amberapp/api/v1alpha1"
+	"github.com/jibudata/amberapp/controllers/util"
 	"github.com/jibudata/amberapp/pkg/appconfig"
 	"github.com/jibudata/amberapp/pkg/mongo"
 	"github.com/jibudata/amberapp/pkg/mysql"
@@ -74,6 +75,44 @@ func NewManager(k8sclient client.Client, instance *v1alpha1.AppHook, secret *cor
 	return &CacheManager, nil
 }
 
+// danger, do NOT update the config when database is quiesced
+func (d *DriverManager) Update(instance *v1alpha1.AppHook, secret *corev1.Secret) error {
+	if d.appConfig.Name != instance.Name {
+		return fmt.Errorf("apphook name %s cannot be changed", d.appConfig.Name)
+	}
+	if d.appConfig.Provider != instance.Spec.AppProvider {
+		return fmt.Errorf("apphook %s provider %s cannot be changed", d.appConfig.Name, d.appConfig.Provider)
+	}
+
+	isChanged := false
+	if d.appConfig.Host != instance.Spec.EndPoint {
+		d.appConfig.Host = instance.Spec.EndPoint
+		isChanged = true
+	}
+	if !equalStr(d.appConfig.Databases, instance.Spec.Databases) {
+		d.appConfig.Databases = instance.Spec.Databases
+		isChanged = true
+	}
+	if d.appConfig.Username != string(secret.Data["username"]) {
+		d.appConfig.Username = string(secret.Data["username"])
+		isChanged = true
+	}
+	if d.appConfig.Password != string(secret.Data["password"]) {
+		d.appConfig.Password = string(secret.Data["password"])
+		isChanged = true
+	}
+
+	if isChanged {
+		log.Log.Info(fmt.Sprintf("detected %s configuration was changed, updating", d.appConfig.Name))
+		if instance.Status.Phase == v1alpha1.HookQUIESCED {
+			log.Log.Info(fmt.Sprintf("warning: %s hook status is quiesced when updating configuration", d.appConfig.Name))
+		}
+		return d.db.Init(d.appConfig)
+	}
+
+	return nil
+}
+
 func (d *DriverManager) Ready() {
 	d.ready = true
 }
@@ -92,4 +131,22 @@ func (d *DriverManager) DBQuiesce() error {
 
 func (d *DriverManager) DBUnquiesce() error {
 	return d.db.Unquiesce()
+}
+
+func equalStr(str1, str2 []string) bool {
+	if len(str1) != len(str2) {
+		return false
+	}
+	var i int
+	for i = 0; i < len(str1); i++ {
+		if !util.IsContain(str2, str1[i]) {
+			return false
+		}
+	}
+	for i = 0; i < len(str2); i++ {
+		if !util.IsContain(str1, str2[i]) {
+			return false
+		}
+	}
+	return true
 }
