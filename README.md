@@ -95,17 +95,17 @@ Other backup solution can use CR for API level integration with AmberApp, below 
 1. generate all resources
 
    ```bash
-   make generate-all -e VERSION=0.0.4
+   make generate-all -e VERSION=0.0.5
    ```
 
 2. build docker image
 
    ```bash
-   make docker-build -e VERSION=0.0.4
+   make docker-build -e VERSION=0.0.5
    ```
 
 3. deploy
 
    ```bash
-   make deploy -e VERSION=0.0.4
+   make deploy -e VERSION=0.0.5
    ```

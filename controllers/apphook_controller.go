@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/jibudata/amberapp/controllers/util"
 	corev1 "k8s.io/api/core/v1"
@@ -116,15 +117,40 @@ func (r *AppHookReconciler) reconcile(instance *v1alpha1.AppHook) (ctrl.Result, 
 		return reconcile.Result{}, nil
 	}
 
+	// quiesce timeout check
+	if instance.Spec.TimeoutSeconds != nil {
+		if *instance.Spec.TimeoutSeconds > 0 {
+			if instance.Spec.OperationType == v1alpha1.QUIESCE && instance.Status.Phase == v1alpha1.HookQUIESCED && instance.Status.QuiescedTimestamp != "" {
+				quiescedTime, err := time.Parse("2006-01-02 15:04:05", instance.Status.QuiescedTimestamp)
+				if err != nil {
+					log.Log.Error(err, fmt.Sprintf("failed to parse quiesced time from %s", instance.Name))
+				} else {
+					currentTime := time.Now()
+					timePassedSecond := currentTime.Sub(quiescedTime) / time.Second
+					if timePassedSecond >= time.Duration(*instance.Spec.TimeoutSeconds) { // timeout
+						log.Log.Info(fmt.Sprintf("warning: quiesce timeout. Do unquiesce automatically for %s", instance.Name))
+						instance.Spec.OperationType = v1alpha1.UNQUIESCE
+						return reconcile.Result{}, r.Client.Update(context.TODO(), instance)
+					} else { // not timeout, requeue again
+						nextReqSecond := time.Duration(*instance.Spec.TimeoutSeconds) - timePassedSecond
+						log.Log.Info(fmt.Sprintf("quiesce will be timeout after %d seconds for %s", nextReqSecond, instance.Name))
+						return reconcile.Result{RequeueAfter: nextReqSecond * time.Second}, nil
+					}
+				}
+			}
+		}
+	}
+
 	// database quiesce/unquiesce
-	if err = r.ensureHookOperation(instance); err != nil {
+	requeueTime, err := r.ensureHookOperation(instance)
+	if err != nil {
 		message := fmt.Sprintf("failed to take action of: %s", instance.Name)
 		log.Log.Error(err, message)
 
 		return reconcile.Result{}, err
 	}
 
-	return reconcile.Result{}, nil
+	return reconcile.Result{RequeueAfter: requeueTime}, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
@@ -162,7 +188,9 @@ func (r *AppHookReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-func (r *AppHookReconciler) ensureHookOperation(instance *v1alpha1.AppHook) error {
+func (r *AppHookReconciler) ensureHookOperation(instance *v1alpha1.AppHook) (time.Duration, error) {
+	requeueTime := time.Duration(0)
+
 	appSecret := &corev1.Secret{}
 	err := r.Client.Get(
 		context.TODO(),
@@ -173,14 +201,14 @@ func (r *AppHookReconciler) ensureHookOperation(instance *v1alpha1.AppHook) erro
 
 	if err != nil {
 		log.Log.Error(err, fmt.Sprintf("failed to get secret %s in namespace %s", instance.Spec.Secret.Name, instance.Spec.Secret.Namespace))
-		return err
+		return requeueTime, err
 	}
 
 	// get drivermanager for the CR
 	mgr, err := r.getDriverManager(instance, appSecret)
 	if err != nil {
 		log.Log.Error(err, fmt.Sprintf("failed to get driver manager for %s", instance.Name))
-		return err
+		return requeueTime, err
 	}
 	// check operation type
 	if instance.Spec.OperationType == "" { // new CR
@@ -213,6 +241,10 @@ func (r *AppHookReconciler) ensureHookOperation(instance *v1alpha1.AppHook) erro
 				} else {
 					log.Log.Info(fmt.Sprintf("successfully quiesce for %s", instance.Name))
 					instance.Status.Phase = v1alpha1.HookQUIESCED
+					instance.Status.QuiescedTimestamp = time.Now().Format("2006-01-02 15:04:05")
+					if instance.Spec.TimeoutSeconds != nil && *(instance.Spec.TimeoutSeconds) != 0 {
+						requeueTime = time.Duration(*(instance.Spec.TimeoutSeconds)) * time.Second
+					}
 				}
 			}
 		}
@@ -233,6 +265,8 @@ func (r *AppHookReconciler) ensureHookOperation(instance *v1alpha1.AppHook) erro
 				} else {
 					log.Log.Info(fmt.Sprintf("successfully unquiesce for %s", instance.Name))
 					instance.Status.Phase = v1alpha1.HookUNQUIESCED
+					// remove quiesce timestamp from status
+					instance.Status.QuiescedTimestamp = ""
 				}
 			}
 		}
@@ -243,11 +277,11 @@ func (r *AppHookReconciler) ensureHookOperation(instance *v1alpha1.AppHook) erro
 	// update CR status
 	statusError := r.Client.Status().Update(context.TODO(), instance)
 	if statusError != nil {
-		log.Log.Error(statusError, fmt.Sprintf("Failed to update status of %s", instance.Name))
-		return statusError
+		log.Log.Error(statusError, fmt.Sprintf("Failed to update status %s", instance.Name))
+		return requeueTime, statusError
 	}
 
-	return err
+	return requeueTime, err
 }
 
 func (r *AppHookReconciler) ensureRemoveHook(instance *v1alpha1.AppHook) error {
