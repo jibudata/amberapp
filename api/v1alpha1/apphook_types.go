@@ -47,8 +47,8 @@ type AppHookSpec struct {
 // AppHookStatus defines the observed state of AppHook
 //+kubebuilder:subresource:status
 type AppHookStatus struct {
-	Phase             string `json:"phase,omitempty"`
-	QuiescedTimestamp string `json:"quiescedtimestamp,omitempty"`
+	Phase             string       `json:"phase,omitempty"`
+	QuiescedTimestamp *metav1.Time `json:"quiescedTimestamp,omitempty"`
 }
 
 //+kubebuilder:object:root=true

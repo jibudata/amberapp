@@ -25,6 +25,7 @@ import (
 	"github.com/jibudata/amberapp/controllers/util"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -120,22 +121,18 @@ func (r *AppHookReconciler) reconcile(instance *v1alpha1.AppHook) (ctrl.Result, 
 	// quiesce timeout check
 	if instance.Spec.TimeoutSeconds != nil {
 		if *instance.Spec.TimeoutSeconds > 0 {
-			if instance.Spec.OperationType == v1alpha1.QUIESCE && instance.Status.Phase == v1alpha1.HookQUIESCED && instance.Status.QuiescedTimestamp != "" {
-				quiescedTime, err := time.Parse("2006-01-02 15:04:05", instance.Status.QuiescedTimestamp)
-				if err != nil {
-					log.Log.Error(err, fmt.Sprintf("failed to parse quiesced time from %s", instance.Name))
-				} else {
-					currentTime := time.Now()
-					timePassedSecond := currentTime.Sub(quiescedTime) / time.Second
-					if timePassedSecond >= time.Duration(*instance.Spec.TimeoutSeconds) { // timeout
-						log.Log.Info(fmt.Sprintf("warning: quiesce timeout. Do unquiesce automatically for %s", instance.Name))
-						instance.Spec.OperationType = v1alpha1.UNQUIESCE
-						return reconcile.Result{}, r.Client.Update(context.TODO(), instance)
-					} else { // not timeout, requeue again
-						nextReqSecond := time.Duration(*instance.Spec.TimeoutSeconds) - timePassedSecond
-						log.Log.Info(fmt.Sprintf("quiesce will be timeout after %d seconds for %s", nextReqSecond, instance.Name))
-						return reconcile.Result{RequeueAfter: nextReqSecond * time.Second}, nil
-					}
+			if instance.Spec.OperationType == v1alpha1.QUIESCE && instance.Status.Phase == v1alpha1.HookQUIESCED && instance.Status.QuiescedTimestamp != nil {
+				quiescedTime := *instance.Status.QuiescedTimestamp
+				currentTime := metav1.NewTime(time.Now())
+				timePassedSecond := currentTime.Sub(quiescedTime.Time) / time.Second
+				if timePassedSecond >= time.Duration(*instance.Spec.TimeoutSeconds) { // timeout
+					log.Log.Info(fmt.Sprintf("warning: quiesce timeout. Do unquiesce automatically for %s", instance.Name))
+					instance.Spec.OperationType = v1alpha1.UNQUIESCE
+					return reconcile.Result{}, r.Client.Update(context.TODO(), instance)
+				} else { // not timeout, requeue again
+					nextReqSecond := time.Duration(*instance.Spec.TimeoutSeconds) - timePassedSecond
+					log.Log.Info(fmt.Sprintf("quiesce will be timeout after %d seconds for %s", nextReqSecond, instance.Name))
+					return reconcile.Result{RequeueAfter: nextReqSecond * time.Second}, nil
 				}
 			}
 		}
@@ -241,7 +238,7 @@ func (r *AppHookReconciler) ensureHookOperation(instance *v1alpha1.AppHook) (tim
 				} else {
 					log.Log.Info(fmt.Sprintf("successfully quiesce for %s", instance.Name))
 					instance.Status.Phase = v1alpha1.HookQUIESCED
-					instance.Status.QuiescedTimestamp = time.Now().Format("2006-01-02 15:04:05")
+					instance.Status.QuiescedTimestamp = &metav1.Time{Time: time.Now()}
 					if instance.Spec.TimeoutSeconds != nil && *(instance.Spec.TimeoutSeconds) != 0 {
 						requeueTime = time.Duration(*(instance.Spec.TimeoutSeconds)) * time.Second
 					}
@@ -264,9 +261,7 @@ func (r *AppHookReconciler) ensureHookOperation(instance *v1alpha1.AppHook) (tim
 					instance.Status.Phase = v1alpha1.HookUNQUIESCEINPROGRESS
 				} else {
 					log.Log.Info(fmt.Sprintf("successfully unquiesce for %s", instance.Name))
-					instance.Status.Phase = v1alpha1.HookUNQUIESCED
-					// remove quiesce timestamp from status
-					instance.Status.QuiescedTimestamp = ""
+					instance.Status = v1alpha1.AppHookStatus{Phase: v1alpha1.HookUNQUIESCED}
 				}
 			}
 		}
