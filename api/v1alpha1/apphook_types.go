@@ -36,6 +36,7 @@ type AppHookSpec struct {
 	OperationType string `json:"operationType,omitempty"`
 	// TimeoutSeconds is the timeout of operation
 	//+kubebuilder:validation:Minimum=0
+	//+kubebuilder:default:0
 	TimeoutSeconds *int32 `json:"timeoutSeconds,omitempty"`
 	// Secret to access the application
 	Secret corev1.SecretReference `json:"secret,omitempty"`
@@ -46,7 +47,8 @@ type AppHookSpec struct {
 // AppHookStatus defines the observed state of AppHook
 //+kubebuilder:subresource:status
 type AppHookStatus struct {
-	Phase string `json:"phase,omitempty"`
+	Phase             string       `json:"phase,omitempty"`
+	QuiescedTimestamp *metav1.Time `json:"quiescedTimestamp,omitempty"`
 }
 
 //+kubebuilder:object:root=true
