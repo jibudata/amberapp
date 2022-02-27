@@ -27,6 +27,10 @@ spec:
       containers:
       - command:
         - /manager
+        args: 
+        - -zap-devel=false 
+        - -zap-encoder=console 
+        - -zap-log-level=debug
         image: controller:latest
         imagePullPolicy: Always
         name: manager

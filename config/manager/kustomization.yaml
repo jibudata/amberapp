@@ -9,5 +9,5 @@ kind: Kustomization
 images:
 - name: controller
   newName: registry.cn-shanghai.aliyuncs.com/jibudata/amberapp
-  newTag: 0.0.4
+  newTag: 0.0.5
 namespace: qiming-backend

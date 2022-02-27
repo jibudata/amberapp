@@ -314,7 +314,11 @@ spec:
         control-plane: amberapp-controller-manager
     spec:
       containers:
-      - command:
+      - args:
+        - -zap-devel=false
+        - -zap-encoder=console
+        - -zap-log-level=debug
+        command:
         - /manager
         env:
         - name: WATCH_NAMESPACE

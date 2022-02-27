@@ -16,14 +16,18 @@ spec:
         control-plane: amberapp-controller-manager
     spec:
       containers:
-      - command:
+      - args:
+        - -zap-devel=false
+        - -zap-encoder=console
+        - -zap-log-level=debug
+        command:
         - /manager
         env:
         - name: WATCH_NAMESPACE
           valueFrom:
             fieldRef:
               fieldPath: metadata.namespace
-        image: registry.cn-shanghai.aliyuncs.com/jibudata/amberapp:0.0.4
+        image: registry.cn-shanghai.aliyuncs.com/jibudata/amberapp:0.0.5
         imagePullPolicy: Always
         name: manager
         resources:
