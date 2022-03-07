@@ -1,5 +1,5 @@
 # Build the manager binary
-FROM --platform=${BUILDPLATFORM} golang:1.17 as builder
+FROM --platform=${TARGETPLATFORM} golang:1.17 as builder
 
 WORKDIR /workspace
 # Copy the Go Modules manifests
@@ -19,10 +19,10 @@ COPY pkg/ pkg/
 
 # Build
 ARG TARGETARCH
-ARG TARGETARCH
+ARG TARGETOS
 RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -a -o manager main.go
 
-FROM --platform=${BUILDPLATFORM} redhat/ubi8-minimal:latest
+FROM --platform=${TARGETPLATFORM} redhat/ubi8-minimal:latest
 WORKDIR /
 COPY --from=builder /workspace/manager .
 USER 65532:65532

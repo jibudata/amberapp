@@ -20,10 +20,9 @@ import (
 	"os"
 	"path/filepath"
 
-	"k8s.io/klog"
-
 	"github.com/jibudata/amberapp/pkg/cmd"
 	"github.com/jibudata/amberapp/pkg/cmd/apphook"
+	"k8s.io/klog/v2"
 )
 
 func main() {
