@@ -262,6 +262,8 @@ func (r *AppHookReconciler) ensureHookOperation(instance *v1alpha1.AppHook) (tim
 				} else {
 					log.Log.Info(fmt.Sprintf("successfully unquiesce for %s", instance.Name))
 					instance.Status = v1alpha1.AppHookStatus{Phase: v1alpha1.HookUNQUIESCED}
+					// remove cached mgr
+					r.deleteDriverManager(instance)
 				}
 			}
 		}
