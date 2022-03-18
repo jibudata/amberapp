@@ -32,9 +32,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	"github.com/jibudata/amberapp/api/v1alpha1"
 	drivermanager "github.com/jibudata/amberapp/controllers/driver"
@@ -140,10 +142,16 @@ func (r *AppHookReconciler) reconcile(instance *v1alpha1.AppHook) (ctrl.Result, 
 
 	// database quiesce/unquiesce
 	requeueTime, err := r.ensureHookOperation(instance)
+	// update CR status
+	statusError := r.Client.Status().Update(context.TODO(), instance)
+	if statusError != nil {
+		log.Log.Error(statusError, fmt.Sprintf("Failed to update status %s", instance.Name))
+		return reconcile.Result{}, statusError
+	}
+
 	if err != nil {
 		message := fmt.Sprintf("failed to take action of: %s", instance.Name)
 		log.Log.Error(err, message)
-
 		return reconcile.Result{}, err
 	}
 
@@ -180,8 +188,10 @@ func (r *AppHookReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			return predicateFunc(e.Object)
 		},
 	}
+
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&v1alpha1.AppHook{}, builder.WithPredicates(appHookCRPredicate)).
+		Watches(&source.Kind{Type: &corev1.Secret{}}, handler.EnqueueRequestsFromMapFunc(r.findAppHooksBySecret)).
 		Complete(r)
 }
 
@@ -198,6 +208,7 @@ func (r *AppHookReconciler) ensureHookOperation(instance *v1alpha1.AppHook) (tim
 
 	if err != nil {
 		log.Log.Error(err, fmt.Sprintf("failed to get secret %s in namespace %s", instance.Spec.Secret.Name, instance.Spec.Secret.Namespace))
+		instance.Status.Phase = v1alpha1.HookNotReady
 		return requeueTime, err
 	}
 
@@ -205,21 +216,20 @@ func (r *AppHookReconciler) ensureHookOperation(instance *v1alpha1.AppHook) (tim
 	mgr, err := r.getDriverManager(instance, appSecret)
 	if err != nil {
 		log.Log.Error(err, fmt.Sprintf("failed to get driver manager for %s", instance.Name))
+		instance.Status.Phase = v1alpha1.HookNotReady
 		return requeueTime, err
 	}
 	// check operation type
 	if instance.Spec.OperationType == "" { // new CR
-		if instance.Status.Phase != v1alpha1.HookReady {
-			instance.Status.Phase = v1alpha1.HookCreated
-			// connect to database to check status
-			err = mgr.DBConnect()
-			if err != nil {
-				log.Log.Error(err, fmt.Sprintf("failed to connect database for %s", instance.Name))
-				instance.Status.Phase = v1alpha1.HookNotReady
-			} else {
-				log.Log.Info(fmt.Sprintf("hook for %s is ready", instance.Name))
-				instance.Status.Phase = v1alpha1.HookReady
-			}
+		instance.Status.Phase = v1alpha1.HookCreated
+		// connect to database to check status
+		err = mgr.DBConnect()
+		if err != nil {
+			log.Log.Error(err, fmt.Sprintf("failed to connect database for %s", instance.Name))
+			instance.Status.Phase = v1alpha1.HookNotReady
+		} else {
+			log.Log.Info(fmt.Sprintf("hook for %s is ready", instance.Name))
+			instance.Status.Phase = v1alpha1.HookReady
 		}
 	} else if strings.EqualFold(instance.Spec.OperationType, v1alpha1.QUIESCE) {
 		if instance.Status.Phase != v1alpha1.HookQUIESCED {
@@ -271,13 +281,6 @@ func (r *AppHookReconciler) ensureHookOperation(instance *v1alpha1.AppHook) (tim
 		log.Log.Error(fmt.Errorf("unsupported operation %s for %s", instance.Spec.OperationType, instance.Name), "err")
 	}
 
-	// update CR status
-	statusError := r.Client.Status().Update(context.TODO(), instance)
-	if statusError != nil {
-		log.Log.Error(statusError, fmt.Sprintf("Failed to update status %s", instance.Name))
-		return requeueTime, statusError
-	}
-
 	return requeueTime, err
 }
 
@@ -316,4 +319,31 @@ func (r *AppHookReconciler) deleteDriverManager(instance *v1alpha1.AppHook) erro
 	}
 
 	return nil
+}
+
+func (r *AppHookReconciler) findAppHooksBySecret(rawObj client.Object) []reconcile.Request {
+	var err error
+	requests := make([]reconcile.Request, 0)
+	secret, ok := rawObj.(*corev1.Secret)
+	if !ok {
+		return nil
+	}
+
+	instanceList := &v1alpha1.AppHookList{}
+	if err = r.List(context.TODO(), instanceList); err != nil {
+		return nil
+	}
+
+	for _, instance := range instanceList.Items {
+		if instance.Spec.Secret.Name == secret.GetName() && instance.Spec.Secret.Namespace == secret.GetNamespace() {
+			requests = append(requests, reconcile.Request{
+				NamespacedName: types.NamespacedName{
+					Name:      instance.Name,
+					Namespace: instance.Namespace,
+				},
+			})
+		}
+	}
+
+	return requests
 }

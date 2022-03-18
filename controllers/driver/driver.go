@@ -107,7 +107,14 @@ func (d *DriverManager) Update(instance *v1alpha1.AppHook, secret *corev1.Secret
 		if instance.Status.Phase == v1alpha1.HookQUIESCED {
 			log.Log.Info(fmt.Sprintf("warning: %s hook status is quiesced when updating configuration", d.appConfig.Name))
 		}
-		return d.db.Init(d.appConfig)
+		err := d.db.Init(d.appConfig)
+		if err != nil {
+			return err
+		}
+		err = d.db.Connect()
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
