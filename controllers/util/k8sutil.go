@@ -22,9 +22,10 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/jibudata/amberapp/api/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/jibudata/amberapp/api/v1alpha1"
 )
 
 // CalculateDataHash generates a sha256 hex-digest for a data object

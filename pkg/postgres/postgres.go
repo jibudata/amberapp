@@ -5,9 +5,10 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/jibudata/amberapp/pkg/appconfig"
 	_ "github.com/lib/pq"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+
+	"github.com/jibudata/amberapp/pkg/appconfig"
 )
 
 type PG struct {

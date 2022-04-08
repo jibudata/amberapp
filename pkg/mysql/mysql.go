@@ -5,8 +5,9 @@ import (
 	"fmt"
 
 	_ "github.com/go-sql-driver/mysql"
-	"github.com/jibudata/amberapp/pkg/appconfig"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+
+	"github.com/jibudata/amberapp/pkg/appconfig"
 )
 
 type MYSQL struct {
