@@ -4,16 +4,16 @@ import (
 	"fmt"
 	"strings"
 
+	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
-	v1alpha1 "github.com/jibudata/amberapp/api/v1alpha1"
+	"github.com/jibudata/amberapp/api/v1alpha1"
 	"github.com/jibudata/amberapp/controllers/util"
 	"github.com/jibudata/amberapp/pkg/appconfig"
 	"github.com/jibudata/amberapp/pkg/mongo"
 	"github.com/jibudata/amberapp/pkg/mysql"
 	"github.com/jibudata/amberapp/pkg/postgres"
-	corev1 "k8s.io/api/core/v1"
 )
 
 type SupportedDB string

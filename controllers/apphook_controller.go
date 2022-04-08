@@ -22,7 +22,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/jibudata/amberapp/controllers/util"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -40,6 +39,7 @@ import (
 
 	"github.com/jibudata/amberapp/api/v1alpha1"
 	drivermanager "github.com/jibudata/amberapp/controllers/driver"
+	"github.com/jibudata/amberapp/controllers/util"
 )
 
 const (
