@@ -7,7 +7,15 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
+	amberappApi "github.com/jibudata/amberapp/api/v1alpha1"
 	"github.com/jibudata/amberapp/pkg/appconfig"
+)
+
+const (
+	TableLockCmd      = "FLUSH TABLES WITH READ LOCK;"
+	TableUnLockCmd    = "UNLOCK TABLES;"
+	InstanceLockCmd   = "LOCK INSTANCE FOR BACKUP;"
+	InstanceUnLockCmd = "UNLOCK INSTANCE;"
 )
 
 type MYSQL struct {
@@ -76,7 +84,8 @@ func (m *MYSQL) Unquiesce() error {
 }
 
 func (m *MYSQL) mysqlLock() error {
-	_, err := m.db.Exec("FLUSH TABLES WITH READ LOCK;")
+	cmd := m.getLockCmd()
+	_, err := m.db.Exec(cmd)
 	return err
 }
 
@@ -84,5 +93,53 @@ func (m *MYSQL) mysqlUnlock() error {
 	if m.db == nil {
 		return nil
 	}
+	cmd := m.getUnLockCmd()
+	_, err := m.db.Exec(cmd)
+	if err != nil {
+		return err
+	}
+
 	return m.db.Close()
+}
+
+func (m *MYSQL) getLockCmd() string {
+	if m.config.Params == nil {
+		// default table lock
+		return TableLockCmd
+	}
+
+	lockMethod, ok := m.config.Params[amberappApi.MysqlLockMethod]
+	if ok {
+		switch lockMethod {
+		case amberappApi.MysqlTableLock:
+			return TableLockCmd
+		case amberappApi.MysqlInstanceLock:
+			return InstanceLockCmd
+		default:
+			return TableLockCmd
+		}
+	}
+
+	return TableLockCmd
+}
+
+func (m *MYSQL) getUnLockCmd() string {
+	if m.config.Params == nil {
+		// default table lock
+		return TableUnLockCmd
+	}
+
+	lockMethod, ok := m.config.Params[amberappApi.MysqlLockMethod]
+	if ok {
+		switch lockMethod {
+		case amberappApi.MysqlTableLock:
+			return TableUnLockCmd
+		case amberappApi.MysqlInstanceLock:
+			return InstanceUnLockCmd
+		default:
+			return TableUnLockCmd
+		}
+	}
+
+	return TableUnLockCmd
 }

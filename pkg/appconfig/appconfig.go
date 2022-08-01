@@ -8,4 +8,5 @@ type Config struct {
 	Password  string
 	Provider  string
 	Operation string
+	Params    map[string]string
 }
