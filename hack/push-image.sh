@@ -8,7 +8,7 @@ BRANCH=$(git rev-parse --abbrev-ref HEAD)
 COMMITID=$(git rev-parse --short HEAD)
 TAG=${TAG:-"${BRANCH}.${COMMITID}"}
 
-REGISTRY=${REGISTRY:-"registry.cn-shanghai.aliyuncs.com/jibudata"}
+REGISTRY=${REGISTRY:-"registry.cn-shanghai.aliyuncs.com/jibutech"}
 
 IMAGENAME=${IMAGENAME:-"amberapp"}
 
