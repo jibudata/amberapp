@@ -44,6 +44,7 @@ func (pg *PG) Connect() error {
 		}
 		pg.db.Close()
 	}
+	log.Log.Info("connected to postgres")
 	return nil
 }
 

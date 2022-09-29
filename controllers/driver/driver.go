@@ -43,6 +43,7 @@ type DriverManager struct {
 func NewManager(k8sclient client.Client, instance *v1alpha1.AppHook, secret *corev1.Secret) (*DriverManager, error) {
 	var CacheManager DriverManager
 	var err error
+	var usePrimary bool
 	CacheManager.Client = k8sclient
 	CacheManager.appName = instance.Name
 	CacheManager.namespace = instance.Namespace
@@ -61,14 +62,24 @@ func NewManager(k8sclient client.Client, instance *v1alpha1.AppHook, secret *cor
 		return &CacheManager, err
 	}
 
+	if len(instance.Spec.Params) > 0 {
+		quiesceParam, ok := instance.Spec.Params[v1alpha1.QuiesceFromPrimary]
+		if ok {
+			if quiesceParam == "true" {
+				usePrimary = true
+			}
+		}
+	}
+
 	CacheManager.appConfig = appconfig.Config{
-		Name:      instance.Name,
-		Host:      instance.Spec.EndPoint,
-		Databases: instance.Spec.Databases,
-		Username:  string(secret.Data["username"]),
-		Password:  string(secret.Data["password"]),
-		Provider:  instance.Spec.AppProvider,
-		Operation: instance.Spec.OperationType,
+		Name:               instance.Name,
+		Host:               instance.Spec.EndPoint,
+		Databases:          instance.Spec.Databases,
+		Username:           string(secret.Data["username"]),
+		Password:           string(secret.Data["password"]),
+		Provider:           instance.Spec.AppProvider,
+		Operation:          instance.Spec.OperationType,
+		QuiesceFromPrimary: usePrimary,
 	}
 	CacheManager.db.Init(CacheManager.appConfig)
 

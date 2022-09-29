@@ -21,6 +21,11 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// Params key
+const (
+	QuiesceFromPrimary = "QuiesceFromPrimary"
+)
+
 // AppHookSpec defines the desired state of AppHook
 type AppHookSpec struct {
 	// Name is a job for backup/restore/migration

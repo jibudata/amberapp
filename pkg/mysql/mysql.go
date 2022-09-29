@@ -53,6 +53,7 @@ func (m *MYSQL) Connect() error {
 		}
 		db.Close()
 	}
+	log.Log.Info("mysql connected")
 	return nil
 }
 
