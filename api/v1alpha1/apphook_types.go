@@ -21,6 +21,11 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// Params key
+const (
+	QuiesceFromPrimary = "QuiesceFromPrimary"
+)
+
 // AppHookSpec defines the desired state of AppHook
 type AppHookSpec struct {
 	// Name is a job for backup/restore/migration
@@ -44,11 +49,29 @@ type AppHookSpec struct {
 	Params map[string]string `json:"params,omitempty"`
 }
 
+type QuiesceResult struct {
+	Mongo *MongoResult `json:"mongo,omitempty"`
+	Mysql *MysqlResult `json:"mysql,omitempty"`
+	Pg    *PgResult    `json:"pg,omitempty"`
+}
+
+type MongoResult struct {
+	MongoEndpoint string `json:"mongoEndpoint,omitempty"`
+	IsPrimary     bool   `json:"isPrimary,omitempty"`
+}
+
+type MysqlResult struct {
+}
+
+type PgResult struct {
+}
+
 // AppHookStatus defines the observed state of AppHook
 //+kubebuilder:subresource:status
 type AppHookStatus struct {
-	Phase             string       `json:"phase,omitempty"`
-	QuiescedTimestamp *metav1.Time `json:"quiescedTimestamp,omitempty"`
+	Phase             string         `json:"phase,omitempty"`
+	QuiescedTimestamp *metav1.Time   `json:"quiescedTimestamp,omitempty"`
+	Result            *QuiesceResult `json:"result,omitempty"`
 }
 
 //+kubebuilder:object:root=true

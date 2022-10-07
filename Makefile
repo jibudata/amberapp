@@ -1,8 +1,7 @@
 SHELL := /bin/bash
 
-#REPO = quay.io
 REPO = registry.cn-shanghai.aliyuncs.com
-NAMESPACE = jibudata
+NAMESPACE = jibutech
 IMG_NAME = amberapp
 HOOK_IMG_NAME = app-hook
 VERSION ?= $(shell git rev-parse --abbrev-ref HEAD).$(shell git rev-parse --short HEAD)
@@ -100,7 +99,7 @@ docker-buildx: test ## Build docker image with the manager.
 docker-pushx: ## Push docker image with the manager.
 	docker buildx build --platform linux/amd64,linux/arm64 -f Dockerfile-multiarch -t ${IMG} . --push 
 
-docker-build: test ## Build docker image with the manager.
+docker-build: #test ## Build docker image with the manager.
 	docker build -t ${IMG} .
 
 docker-push: ## Push docker image with the manager.
