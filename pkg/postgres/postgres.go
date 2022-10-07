@@ -8,6 +8,7 @@ import (
 	_ "github.com/lib/pq"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
+	"github.com/jibudata/amberapp/api/v1alpha1"
 	"github.com/jibudata/amberapp/pkg/appconfig"
 )
 
@@ -48,7 +49,7 @@ func (pg *PG) Connect() error {
 	return nil
 }
 
-func (pg *PG) Quiesce() error {
+func (pg *PG) Quiesce() (*v1alpha1.QuiesceResult, error) {
 	var err error
 	log.Log.Info("postgres quiesce in progress...")
 
@@ -57,14 +58,14 @@ func (pg *PG) Quiesce() error {
 
 	connectionConfigStrings := pg.getConnectionString()
 	if len(connectionConfigStrings) == 0 {
-		return fmt.Errorf("no database found in %s", pg.config.Name)
+		return nil, fmt.Errorf("no database found in %s", pg.config.Name)
 	}
 
 	for i := 0; i < len(connectionConfigStrings); i++ {
 		pg.db, err = sql.Open("postgres", connectionConfigStrings[i])
 		if err != nil {
 			log.Log.Error(err, "cannot connect to postgres")
-			return err
+			return nil, err
 		}
 
 		queryStr := fmt.Sprintf("select pg_start_backup('%s', %s);", backupName, fastStartString)
@@ -77,7 +78,7 @@ func (pg *PG) Quiesce() error {
 				continue
 			}
 			log.Log.Error(queryErr, "could not start postgres backup")
-			return queryErr
+			return nil, queryErr
 		}
 
 		var snapshotLocation string
@@ -86,12 +87,12 @@ func (pg *PG) Quiesce() error {
 		scanErr := result.Scan(&snapshotLocation)
 		if scanErr != nil {
 			log.Log.Error(scanErr, "Postgres backup apparently started but could not understand server response")
-			return scanErr
+			return nil, scanErr
 		}
 		log.Log.Info(fmt.Sprintf("Successfully reach consistent recovery state at %s", snapshotLocation))
 		pg.db.Close()
 	}
-	return nil
+	return nil, nil
 }
 
 func (pg *PG) Unquiesce() error {

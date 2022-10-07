@@ -101,6 +101,20 @@ spec:
               quiescedTimestamp:
                 format: date-time
                 type: string
+              result:
+                properties:
+                  mongo:
+                    properties:
+                      isPrimary:
+                        type: boolean
+                      mongoEndpoint:
+                        type: string
+                    type: object
+                  mysql:
+                    type: object
+                  pg:
+                    type: object
+                type: object
             type: object
         type: object
     served: true

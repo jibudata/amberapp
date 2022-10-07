@@ -27,7 +27,7 @@ const (
 type Database interface {
 	Init(appconfig.Config) error
 	Connect() error
-	Quiesce() error
+	Quiesce() (*v1alpha1.QuiesceResult, error)
 	Unquiesce() error
 }
 
@@ -143,7 +143,7 @@ func (d *DriverManager) DBConnect() error {
 	return d.db.Connect()
 }
 
-func (d *DriverManager) DBQuiesce() error {
+func (d *DriverManager) DBQuiesce() (*v1alpha1.QuiesceResult, error) {
 	return d.db.Quiesce()
 }
 

@@ -10,6 +10,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/readpref"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
+	"github.com/jibudata/amberapp/api/v1alpha1"
 	"github.com/jibudata/amberapp/pkg/appconfig"
 )
 
@@ -25,6 +26,9 @@ func (mg *MG) Init(appConfig appconfig.Config) error {
 
 func (mg *MG) Connect() error {
 	var err error
+	var result bson.M
+	var opts *options.RunCmdOptions
+
 	log.Log.Info("mongodb connecting...")
 
 	client, err := getMongodbClient(mg.config)
@@ -40,18 +44,18 @@ func (mg *MG) Connect() error {
 	}
 
 	// Get hello result, determine if it's secondary
-	cmd := bson.D{{Key: "hello", Value: 1}}
-	var result bson.M
-	var opts *options.RunCmdOptions
 	if !mg.config.QuiesceFromPrimary {
 		opts = options.RunCmd().SetReadPreference(readpref.Secondary())
 	}
 	db := client.Database("admin")
-	err = db.RunCommand(context.TODO(), cmd, opts).Decode(&result)
+
+	// Run hello
+	err = mg.runHello(db, opts, &result)
 	if err != nil {
-		log.Log.Error(err, "failed to run hello command")
+		log.Log.Error(err, "failed to run hello")
 		return err
 	}
+
 	secondary := result["secondary"]
 
 	if secondary == false {
@@ -63,25 +67,45 @@ func (mg *MG) Connect() error {
 	return nil
 }
 
-func (mg *MG) Quiesce() error {
+func (mg *MG) Quiesce() (*v1alpha1.QuiesceResult, error) {
 	var err error
+	var result bson.M
+	var opts *options.RunCmdOptions
+
 	log.Log.Info("mongodb quiesce in progress")
 	client, err := getMongodbClient(mg.config)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	db := client.Database("admin")
-	var opts *options.RunCmdOptions
 	if !mg.config.QuiesceFromPrimary {
 		opts = options.RunCmd().SetReadPreference(readpref.Secondary())
 	}
-	result := db.RunCommand(context.TODO(), bson.D{{Key: "fsync", Value: 1}, {Key: "lock", Value: true}}, opts)
-	if result.Err() != nil {
-		log.Log.Error(result.Err(), fmt.Sprintf("failed to quiesce %s", mg.config.Name))
-		return result.Err()
+
+	err = mg.runHello(db, opts, &result)
+	if err != nil {
+		log.Log.Error(err, "failed to run hello")
+		return nil, err
+	}
+	secondary := result["secondary"]
+	primary := false
+	if secondary == false {
+		primary = true
+	}
+	mongoResult := &v1alpha1.MongoResult{
+		MongoEndpoint: result["me"].(string),
+		IsPrimary:     primary,
+	}
+	log.Log.Info("quiesce mongo", "endpoint", result["me"].(string), "primary", primary)
+	quiResult := &v1alpha1.QuiesceResult{Mongo: mongoResult}
+
+	cmdResult := db.RunCommand(context.TODO(), bson.D{{Key: "fsync", Value: 1}, {Key: "lock", Value: true}}, opts)
+	if cmdResult.Err() != nil {
+		log.Log.Error(cmdResult.Err(), fmt.Sprintf("failed to quiesce %s", mg.config.Name))
+		return quiResult, cmdResult.Err()
 	}
 
-	return nil
+	return quiResult, nil
 }
 
 func (mg *MG) Unquiesce() error {
@@ -99,6 +123,18 @@ func (mg *MG) Unquiesce() error {
 	if result.Err() != nil {
 		log.Log.Error(result.Err(), fmt.Sprintf("failed to unquiesce %s", mg.config.Name))
 		return result.Err()
+	}
+
+	return nil
+}
+
+func (mg *MG) runHello(db *mongo.Database, opts *options.RunCmdOptions, result *bson.M) error {
+	cmd := bson.D{{Key: "hello", Value: 1}}
+
+	err := db.RunCommand(context.TODO(), cmd, opts).Decode(result)
+	if err != nil {
+		log.Log.Error(err, "failed to run hello command")
+		return err
 	}
 
 	return nil

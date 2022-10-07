@@ -241,7 +241,8 @@ func (r *AppHookReconciler) ensureHookOperation(instance *v1alpha1.AppHook) (tim
 			} else {
 				// quiesce database
 				log.Log.Info(fmt.Sprintf("quiesce for %s in progress", instance.Name))
-				err = mgr.DBQuiesce()
+				result, err := mgr.DBQuiesce()
+				instance.Status.Result = result
 				if err != nil {
 					log.Log.Error(err, fmt.Sprintf("failed to quiesce database for %s", instance.Name))
 					instance.Status.Phase = v1alpha1.HookQUIESCEINPROGRESS
@@ -271,7 +272,7 @@ func (r *AppHookReconciler) ensureHookOperation(instance *v1alpha1.AppHook) (tim
 					instance.Status.Phase = v1alpha1.HookUNQUIESCEINPROGRESS
 				} else {
 					log.Log.Info(fmt.Sprintf("successfully unquiesce for %s", instance.Name))
-					instance.Status = v1alpha1.AppHookStatus{Phase: v1alpha1.HookUNQUIESCED}
+					instance.Status.Phase = v1alpha1.HookUNQUIESCED
 					// remove cached mgr
 					r.deleteDriverManager(instance)
 				}

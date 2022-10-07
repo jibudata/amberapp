@@ -7,6 +7,7 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
+	"github.com/jibudata/amberapp/api/v1alpha1"
 	"github.com/jibudata/amberapp/pkg/appconfig"
 )
 
@@ -57,7 +58,7 @@ func (m *MYSQL) Connect() error {
 	return nil
 }
 
-func (m *MYSQL) Quiesce() error {
+func (m *MYSQL) Quiesce() (*v1alpha1.QuiesceResult, error) {
 	var err error
 	log.Log.Info("mysql quiesce in progress...")
 
@@ -65,10 +66,10 @@ func (m *MYSQL) Quiesce() error {
 	m.db, err = sql.Open("mysql", dsn)
 	if err != nil {
 		log.Log.Error(err, fmt.Sprintf("failed to init connection to mysql database %s, in %s", m.config.Databases[0], m.config.Name))
-		return err
+		return nil, err
 	}
 
-	return m.mysqlLock()
+	return nil, m.mysqlLock()
 }
 
 func (m *MYSQL) Unquiesce() error {
