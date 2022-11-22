@@ -81,7 +81,10 @@ func NewManager(k8sclient client.Client, instance *v1alpha1.AppHook, secret *cor
 		Operation:          instance.Spec.OperationType,
 		QuiesceFromPrimary: usePrimary,
 	}
-	CacheManager.db.Init(CacheManager.appConfig)
+	err = CacheManager.db.Init(CacheManager.appConfig)
+	if err != nil {
+		return nil, err
+	}
 
 	return &CacheManager, nil
 }
