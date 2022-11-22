@@ -143,7 +143,7 @@ func (r *AppHookReconciler) reconcile(instance *v1alpha1.AppHook) (ctrl.Result, 
 	// database quiesce/unquiesce
 	requeueTime, err := r.ensureHookOperation(instance)
 	// update CR status
-	statusError := r.Client.Status().Update(context.TODO(), instance)
+	statusError := r.updateStatus(instance)
 	if statusError != nil {
 		log.Log.Error(statusError, fmt.Sprintf("Failed to update status %s", instance.Name))
 		return reconcile.Result{}, statusError
@@ -347,4 +347,27 @@ func (r *AppHookReconciler) findAppHooksBySecret(rawObj client.Object) []reconci
 	}
 
 	return requests
+}
+
+func (r *AppHookReconciler) updateStatus(instance *v1alpha1.AppHook) error {
+	statusError := r.Client.Status().Update(context.TODO(), instance)
+	if statusError != nil {
+		// refresh
+		newInstance := &v1alpha1.AppHook{}
+		req := ctrl.Request{
+			NamespacedName: types.NamespacedName{
+				Name:      instance.Name,
+				Namespace: instance.Namespace,
+			},
+		}
+		if getInstanceErr := r.Get(context.TODO(), req.NamespacedName, newInstance); getInstanceErr != nil {
+			return getInstanceErr
+		}
+		newInstance.Status = instance.Status
+		statusError := r.Client.Status().Update(context.TODO(), newInstance)
+		if statusError != nil {
+			return statusError
+		}
+	}
+	return nil
 }

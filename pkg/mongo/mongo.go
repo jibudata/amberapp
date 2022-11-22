@@ -87,16 +87,24 @@ func (mg *MG) Quiesce() (*v1alpha1.QuiesceResult, error) {
 		log.Log.Error(err, "failed to run hello")
 		return nil, err
 	}
+
 	secondary := result["secondary"]
 	primary := false
 	if secondary == false {
 		primary = true
 	}
+
 	mongoResult := &v1alpha1.MongoResult{
-		MongoEndpoint: result["me"].(string),
-		IsPrimary:     primary,
+		IsPrimary: primary,
 	}
-	log.Log.Info("quiesce mongo", "endpoint", result["me"].(string), "primary", primary)
+	if result["me"] == nil {
+		// standalone mongo
+		mongoResult.MongoEndpoint = mg.config.Host
+	} else {
+		mongoResult.MongoEndpoint = result["me"].(string)
+	}
+
+	log.Log.Info("quiesce mongo", "endpoint", mongoResult.MongoEndpoint, "primary", primary)
 	quiResult := &v1alpha1.QuiesceResult{Mongo: mongoResult}
 
 	cmdResult := db.RunCommand(context.TODO(), bson.D{{Key: "fsync", Value: 1}, {Key: "lock", Value: true}}, opts)
