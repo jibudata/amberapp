@@ -274,7 +274,10 @@ func (r *AppHookReconciler) ensureHookOperation(instance *v1alpha1.AppHook) (tim
 					log.Log.Info(fmt.Sprintf("successfully unquiesce for %s", instance.Name))
 					instance.Status.Phase = v1alpha1.HookUNQUIESCED
 					// remove cached mgr
-					r.deleteDriverManager(instance)
+					err = r.deleteDriverManager(instance)
+					if err != nil {
+						return requeueTime, err
+					}
 				}
 			}
 		}
