@@ -3,6 +3,7 @@ package postgres
 import (
 	"database/sql"
 	"fmt"
+	"strconv"
 	"strings"
 
 	_ "github.com/lib/pq"
@@ -12,9 +13,19 @@ import (
 	"github.com/jibudata/amberapp/pkg/appconfig"
 )
 
+const (
+	// < v15.0
+	PG_START_BACKUP = "pg_start_backup"
+	PG_STOP_BACKUP  = "pg_stop_backup"
+	// >= v15.0
+	PG_BACKUP_START = "pg_backup_start"
+	PG_BACKUP_STOP  = "pg_backup_stop"
+)
+
 type PG struct {
-	config appconfig.Config
-	db     *sql.DB
+	config  appconfig.Config
+	db      *sql.DB
+	version string
 }
 
 func (pg *PG) Init(appConfig appconfig.Config) error {
@@ -43,6 +54,12 @@ func (pg *PG) Connect() error {
 			log.Log.Error(err, fmt.Sprintf("cannot connect to postgres database %s", pg.config.Databases[i]))
 			return err
 		}
+
+		err = pg.getVersion()
+		if err != nil {
+			return err
+		}
+
 		pg.db.Close()
 	}
 	log.Log.Info("connected to postgres")
@@ -68,7 +85,7 @@ func (pg *PG) Quiesce() (*v1alpha1.QuiesceResult, error) {
 			return nil, err
 		}
 
-		queryStr := fmt.Sprintf("select pg_start_backup('%s', %s);", backupName, fastStartString)
+		queryStr := fmt.Sprintf("select %s('%s', %s);", pg.getQuiesceCmd(), backupName, fastStartString)
 
 		result, queryErr := pg.db.Query(queryStr)
 
@@ -111,9 +128,9 @@ func (pg *PG) Unquiesce() error {
 		}
 		defer pg.db.Close()
 
-		result, queryErr := pg.db.Query("select pg_stop_backup();")
+		result, queryErr := pg.db.Query(fmt.Sprintf("select %s();", pg.getUnQuiesceCmd()))
 		if queryErr != nil {
-			if strings.Contains(queryErr.Error(), "exclusive backup not in progress") {
+			if strings.Contains(queryErr.Error(), "not in progress") {
 				pg.db.Close()
 				continue
 			}
@@ -147,4 +164,55 @@ func (pg *PG) getConnectionString() []string {
 		connstr = append(connstr, fmt.Sprintf("host=%s user=%s password=%s dbname=%s sslmode=disable", pg.config.Host, pg.config.Username, pg.config.Password, dbname))
 	}
 	return connstr
+}
+
+func (pg *PG) getVersion() error {
+	var version string
+	result, queryErr := pg.db.Query("show server_version;")
+	if queryErr != nil {
+		log.Log.Error(queryErr, "could get postgres version")
+		return queryErr
+	}
+
+	result.Next()
+	scanErr := result.Scan(&version)
+	if scanErr != nil {
+		log.Log.Error(scanErr, "scan postgres version with error")
+		return scanErr
+	}
+
+	pg.version = strings.Split(version, " ")[0]
+	log.Log.Info("get postgres version", "version", version, "instance", pg.config.Name)
+
+	return nil
+}
+
+func (pg *PG) isVersionAboveV15() bool {
+	aboveV15 := false
+	if pg.version != "" {
+		version, err := strconv.ParseFloat(pg.version, 64)
+		if err != nil {
+			log.Log.Error(err, "failed to convert version to number", "version", pg.version)
+		} else {
+			if version >= 15.0 {
+				aboveV15 = true
+			}
+		}
+	}
+
+	return aboveV15
+}
+
+func (pg *PG) getQuiesceCmd() string {
+	if pg.isVersionAboveV15() {
+		return PG_BACKUP_START
+	}
+	return PG_START_BACKUP
+}
+
+func (pg *PG) getUnQuiesceCmd() string {
+	if pg.isVersionAboveV15() {
+		return PG_BACKUP_STOP
+	}
+	return PG_STOP_BACKUP
 }
