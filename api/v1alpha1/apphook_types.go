@@ -67,7 +67,7 @@ type PgResult struct {
 }
 
 // AppHookStatus defines the observed state of AppHook
-//+kubebuilder:subresource:status
+// +kubebuilder:subresource:status
 type AppHookStatus struct {
 	Phase             string         `json:"phase,omitempty"`
 	QuiescedTimestamp *metav1.Time   `json:"quiescedTimestamp,omitempty"`
