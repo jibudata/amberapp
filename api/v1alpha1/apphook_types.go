@@ -70,6 +70,7 @@ type PgResult struct {
 // +kubebuilder:subresource:status
 type AppHookStatus struct {
 	Phase             string         `json:"phase,omitempty"`
+	ErrMsg            string         `json:"errMsg,omitempty"`
 	QuiescedTimestamp *metav1.Time   `json:"quiescedTimestamp,omitempty"`
 	Result            *QuiesceResult `json:"result,omitempty"`
 }

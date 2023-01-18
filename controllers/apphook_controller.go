@@ -285,6 +285,10 @@ func (r *AppHookReconciler) ensureHookOperation(instance *v1alpha1.AppHook) (tim
 		log.Log.Error(fmt.Errorf("unsupported operation %s for %s", instance.Spec.OperationType, instance.Name), "err")
 	}
 
+	instance.Status.ErrMsg = ""
+	if err != nil {
+		instance.Status.ErrMsg = err.Error()
+	}
 	return requeueTime, err
 }
 
