@@ -2,6 +2,7 @@ package driver
 
 import (
 	"fmt"
+	"reflect"
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
@@ -80,13 +81,10 @@ func NewManager(k8sclient client.Client, instance *v1alpha1.AppHook, secret *cor
 		Provider:           instance.Spec.AppProvider,
 		Operation:          instance.Spec.OperationType,
 		QuiesceFromPrimary: usePrimary,
+		Params:             instance.Spec.Params,
 	}
 	err = CacheManager.db.Init(CacheManager.appConfig)
-	if err != nil {
-		return nil, err
-	}
-
-	return &CacheManager, nil
+	return &CacheManager, err
 }
 
 // danger, do NOT update the config when database is quiesced
@@ -113,6 +111,11 @@ func (d *DriverManager) Update(instance *v1alpha1.AppHook, secret *corev1.Secret
 	}
 	if d.appConfig.Password != string(secret.Data["password"]) {
 		d.appConfig.Password = string(secret.Data["password"])
+		isChanged = true
+	}
+	if !reflect.DeepEqual(d.appConfig.Params, instance.Spec.Params) {
+		log.Log.Info("parameters changes", "new: ", instance.Spec.Params, "old: ", d.appConfig.Params)
+		d.appConfig.Params = instance.Spec.Params
 		isChanged = true
 	}
 
