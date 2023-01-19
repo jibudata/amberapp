@@ -17,4 +17,5 @@ type Config struct {
 	Provider           string
 	Operation          string
 	QuiesceFromPrimary bool
+	Params             map[string]string
 }

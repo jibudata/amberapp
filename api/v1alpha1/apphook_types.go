@@ -26,6 +26,13 @@ const (
 	QuiesceFromPrimary = "QuiesceFromPrimary"
 )
 
+// mysql param
+const (
+	MysqlLockMethod   = "mysql-lock-method"
+	MysqlTableLock    = "table"
+	MysqlInstanceLock = "instance"
+)
+
 // AppHookSpec defines the desired state of AppHook
 type AppHookSpec struct {
 	// Name is a job for backup/restore/migration
