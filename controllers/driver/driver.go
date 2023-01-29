@@ -15,6 +15,7 @@ import (
 	"github.com/jibudata/amberapp/pkg/mongo"
 	"github.com/jibudata/amberapp/pkg/mysql"
 	"github.com/jibudata/amberapp/pkg/postgres"
+	"github.com/jibudata/amberapp/pkg/redis"
 )
 
 type SupportedDB string
@@ -23,6 +24,7 @@ const (
 	MySQL    SupportedDB = "MySQL"
 	Postgres SupportedDB = "Postgres"
 	MongoDB  SupportedDB = "MongoDB"
+	Redis    SupportedDB = "Redis"
 )
 
 type Database interface {
@@ -56,6 +58,8 @@ func NewManager(k8sclient client.Client, instance *v1alpha1.AppHook, secret *cor
 		CacheManager.db = new(mysql.MYSQL)
 	} else if strings.EqualFold(instance.Spec.AppProvider, string(MongoDB)) { // mongo
 		CacheManager.db = new(mongo.MG)
+	} else if strings.EqualFold(instance.Spec.AppProvider, string(Redis)) { // redis
+		CacheManager.db = new(redis.Redis)
 	} else {
 		CacheManager.NotReady()
 		err = fmt.Errorf("provider %s is not supported", instance.Spec.AppProvider)

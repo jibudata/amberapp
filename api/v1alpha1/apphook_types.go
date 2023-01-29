@@ -26,11 +26,16 @@ const (
 	QuiesceFromPrimary = "QuiesceFromPrimary"
 )
 
-// mysql param
 const (
+	// mysql param
 	MysqlLockMethod   = "mysql-lock-method"
 	MysqlTableLock    = "table"
 	MysqlInstanceLock = "instance"
+
+	// redis param
+	RedisBackupMethod = "redis-backup-method"
+	RedisBackupByRDB  = "rdb"
+	RedisBackupByAOF  = "aof"
 )
 
 // AppHookSpec defines the desired state of AppHook
@@ -60,6 +65,7 @@ type QuiesceResult struct {
 	Mongo *MongoResult `json:"mongo,omitempty"`
 	Mysql *MysqlResult `json:"mysql,omitempty"`
 	Pg    *PgResult    `json:"pg,omitempty"`
+	Redis *RedisResult `json:"redis,omitempty"`
 }
 
 type MongoResult struct {
@@ -71,6 +77,10 @@ type MysqlResult struct {
 }
 
 type PgResult struct {
+}
+
+type RedisResult struct {
+	QuiescePreservedConfig map[string]string `json:"quiescePreservedConfig,omitempty"`
 }
 
 // AppHookStatus defines the observed state of AppHook
