@@ -2,22 +2,25 @@ package mongo
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"strings"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"go.mongodb.org/mongo-driver/mongo/readpref"
-	"sigs.k8s.io/controller-runtime/pkg/log"
+	ctrllog "sigs.k8s.io/controller-runtime/pkg/log"
 
 	"github.com/jibudata/amberapp/api/v1alpha1"
 	"github.com/jibudata/amberapp/pkg/appconfig"
 )
 
 type MG struct {
-	config     appconfig.Config
-	usePrimary bool
+	config appconfig.Config
 }
+
+var log = ctrllog.Log.WithName("mongo")
 
 func (mg *MG) Init(appConfig appconfig.Config) error {
 	mg.config = appConfig
@@ -29,7 +32,7 @@ func (mg *MG) Connect() error {
 	var result bson.M
 	var opts *options.RunCmdOptions
 
-	log.Log.Info("mongodb connecting...")
+	log.Info("mongodb connecting...")
 
 	client, err := getMongodbClient(mg.config)
 	if err != nil {
@@ -39,7 +42,7 @@ func (mg *MG) Connect() error {
 	filter := bson.D{{}}
 	_, err = client.ListDatabaseNames(context.TODO(), filter)
 	if err != nil {
-		log.Log.Error(err, "failed to list databases")
+		log.Error(err, "failed to list databases")
 		return err
 	}
 
@@ -52,16 +55,16 @@ func (mg *MG) Connect() error {
 	// Run hello
 	err = mg.runHello(db, opts, &result)
 	if err != nil {
-		log.Log.Error(err, "failed to run hello")
+		log.Error(err, "failed to run hello")
 		return err
 	}
 
 	secondary := result["secondary"]
 
 	if secondary == false {
-		log.Log.Info("Warning, not connected to secondary for quiesce")
+		log.Info("Warning, not connected to secondary for quiesce")
 	} else {
-		log.Log.Info("connected to secondary")
+		log.Info("connected to secondary")
 	}
 
 	return nil
@@ -76,7 +79,7 @@ func (mg *MG) Quiesce() (*v1alpha1.QuiesceResult, error) {
 	var result bson.M
 	var opts *options.RunCmdOptions
 
-	log.Log.Info("mongodb quiesce in progress")
+	log.Info("mongodb quiesce in progress")
 	client, err := getMongodbClient(mg.config)
 	if err != nil {
 		return nil, err
@@ -88,7 +91,7 @@ func (mg *MG) Quiesce() (*v1alpha1.QuiesceResult, error) {
 
 	err = mg.runHello(db, opts, &result)
 	if err != nil {
-		log.Log.Error(err, "failed to run hello")
+		log.Error(err, "failed to run hello")
 		return nil, err
 	}
 
@@ -107,13 +110,23 @@ func (mg *MG) Quiesce() (*v1alpha1.QuiesceResult, error) {
 	} else {
 		mongoResult.MongoEndpoint = result["me"].(string)
 	}
-
-	log.Log.Info("quiesce mongo", "endpoint", mongoResult.MongoEndpoint, "primary", primary)
 	quiResult := &v1alpha1.QuiesceResult{Mongo: mongoResult}
+
+	isLocked, err := isDBLocked(db, opts)
+	if err != nil {
+		log.Error(err, "failed to check lock status of database to quiesce", "instance name", mg.config.Name)
+		return quiResult, err
+	}
+	if isLocked {
+		log.Info("mongodb already locked", "instacne", mg.config.Name)
+		return quiResult, nil
+	}
+
+	log.Info("quiesce mongo", "endpoint", mongoResult.MongoEndpoint, "primary", primary)
 
 	cmdResult := db.RunCommand(context.TODO(), bson.D{{Key: "fsync", Value: 1}, {Key: "lock", Value: true}}, opts)
 	if cmdResult.Err() != nil {
-		log.Log.Error(cmdResult.Err(), fmt.Sprintf("failed to quiesce %s", mg.config.Name))
+		log.Error(cmdResult.Err(), fmt.Sprintf("failed to quiesce %s", mg.config.Name))
 		return quiResult, cmdResult.Err()
 	}
 
@@ -121,7 +134,8 @@ func (mg *MG) Quiesce() (*v1alpha1.QuiesceResult, error) {
 }
 
 func (mg *MG) Unquiesce(prev *v1alpha1.PreservedConfig) error {
-	log.Log.Info("mongodb unquiesce in progress")
+	log.Info("mongodb unquiesce in progress")
+
 	client, err := getMongodbClient(mg.config)
 	if err != nil {
 		return err
@@ -131,10 +145,27 @@ func (mg *MG) Unquiesce(prev *v1alpha1.PreservedConfig) error {
 	if !mg.config.QuiesceFromPrimary {
 		opts = options.RunCmd().SetReadPreference(readpref.Secondary())
 	}
-	result := db.RunCommand(context.TODO(), bson.D{{Key: "fsyncUnlock", Value: 1}}, opts)
-	if result.Err() != nil {
-		log.Log.Error(result.Err(), fmt.Sprintf("failed to unquiesce %s", mg.config.Name))
-		return result.Err()
+
+	isLocked := true
+	for isLocked {
+		isLocked, err = isDBLocked(db, opts)
+		if err != nil {
+			log.Error(err, "failed to check lock status of database to unquiesce", "instance name", mg.config.Name)
+			return err
+		}
+		if !isLocked {
+			return nil
+		}
+
+		result := db.RunCommand(context.TODO(), bson.D{{Key: "fsyncUnlock", Value: 1}}, opts)
+		if result.Err() != nil {
+			// fsyncUnlock called when not locked
+			if strings.Contains(result.Err().Error(), "not locked") {
+				return nil
+			}
+			log.Error(result.Err(), fmt.Sprintf("failed to unquiesce %s", mg.config.Name))
+			return result.Err()
+		}
 	}
 
 	return nil
@@ -145,7 +176,7 @@ func (mg *MG) runHello(db *mongo.Database, opts *options.RunCmdOptions, result *
 
 	err := db.RunCommand(context.TODO(), cmd, opts).Decode(result)
 	if err != nil {
-		log.Log.Error(err, "failed to run hello command")
+		log.Error(err, "failed to run hello command")
 		return err
 	}
 
@@ -163,8 +194,34 @@ func getMongodbClient(appConfig appconfig.Config) (*mongo.Client, error) {
 	clientOptions := options.Client().ApplyURI(host)
 	client, err := mongo.Connect(ctx, clientOptions)
 	if err != nil {
-		log.Log.Error(err, fmt.Sprintf("failed to connect mongodb %s", appConfig.Name))
+		log.Error(err, fmt.Sprintf("failed to connect mongodb %s", appConfig.Name))
 		return client, err
 	}
 	return client, nil
+}
+
+type LockResult struct {
+	LockInfo []interface{}
+}
+
+func isDBLocked(db *mongo.Database, opts *options.RunCmdOptions) (bool, error) {
+	result := db.RunCommand(context.TODO(), bson.D{{Key: "lockInfo", Value: 1}}, opts)
+	if result.Err() != nil {
+		return false, result.Err()
+	}
+
+	resultData, err := result.DecodeBytes()
+	if err != nil {
+		return false, err
+	}
+
+	lockResult := &LockResult{}
+	err = json.Unmarshal([]byte(resultData.String()), lockResult)
+	if err != nil {
+		return false, err
+	}
+	if len(lockResult.LockInfo) > 0 {
+		return true, nil
+	}
+	return false, nil
 }
