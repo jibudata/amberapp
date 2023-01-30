@@ -80,16 +80,21 @@ type PgResult struct {
 }
 
 type RedisResult struct {
-	QuiescePreservedConfig map[string]string `json:"quiescePreservedConfig,omitempty"`
+}
+
+// PreservedConfig saves the origin params before change by quiesce
+type PreservedConfig struct {
+	Params map[string]string `json:"params,omitempty"`
 }
 
 // AppHookStatus defines the observed state of AppHook
 // +kubebuilder:subresource:status
 type AppHookStatus struct {
-	Phase             string         `json:"phase,omitempty"`
-	ErrMsg            string         `json:"errMsg,omitempty"`
-	QuiescedTimestamp *metav1.Time   `json:"quiescedTimestamp,omitempty"`
-	Result            *QuiesceResult `json:"result,omitempty"`
+	Phase             string           `json:"phase,omitempty"`
+	ErrMsg            string           `json:"errMsg,omitempty"`
+	QuiescedTimestamp *metav1.Time     `json:"quiescedTimestamp,omitempty"`
+	Result            *QuiesceResult   `json:"result,omitempty"`
+	PreservedConfig   *PreservedConfig `json:"preservedConfig,omitempty"`
 }
 
 //+kubebuilder:object:root=true

@@ -66,6 +66,10 @@ func (pg *PG) Connect() error {
 	return nil
 }
 
+func (pg *PG) Prepare() (*v1alpha1.PreservedConfig, error) {
+	return nil, nil
+}
+
 func (pg *PG) Quiesce() (*v1alpha1.QuiesceResult, error) {
 	var err error
 	log.Log.Info("postgres quiesce in progress...")
@@ -112,7 +116,7 @@ func (pg *PG) Quiesce() (*v1alpha1.QuiesceResult, error) {
 	return nil, nil
 }
 
-func (pg *PG) Unquiesce() error {
+func (pg *PG) Unquiesce(prev *v1alpha1.PreservedConfig) error {
 	var err error
 	log.Log.Info("postgres unquiesce in progress...")
 	connectionConfigStrings := pg.getConnectionString()

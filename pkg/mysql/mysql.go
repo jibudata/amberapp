@@ -65,6 +65,10 @@ func (m *MYSQL) Connect() error {
 	return nil
 }
 
+func (m *MYSQL) Prepare() (*amberappApi.PreservedConfig, error) {
+	return nil, nil
+}
+
 func (m *MYSQL) Quiesce() (*amberappApi.QuiesceResult, error) {
 	var err error
 	log.Log.Info("mysql quiesce in progress...")
@@ -79,7 +83,7 @@ func (m *MYSQL) Quiesce() (*amberappApi.QuiesceResult, error) {
 	return nil, m.mysqlLock()
 }
 
-func (m *MYSQL) Unquiesce() error {
+func (m *MYSQL) Unquiesce(prev *amberappApi.PreservedConfig) error {
 	log.Log.Info("mysql unquiesce in progress...")
 	return m.mysqlUnlock()
 }
