@@ -100,6 +100,15 @@ spec:
                 type: string
               phase:
                 type: string
+              preservedConfig:
+                description: PreservedConfig saves the origin params before change
+                  by quiesce
+                properties:
+                  params:
+                    additionalProperties:
+                      type: string
+                    type: object
+                type: object
               quiescedTimestamp:
                 format: date-time
                 type: string
@@ -117,11 +126,6 @@ spec:
                   pg:
                     type: object
                   redis:
-                    properties:
-                      quiescePreservedConfig:
-                        additionalProperties:
-                          type: string
-                        type: object
                     type: object
                 type: object
             type: object

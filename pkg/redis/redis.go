@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"golang.org/x/mod/semver"
+	"k8s.io/apimachinery/pkg/util/wait"
 
 	"github.com/go-redis/redis/v8"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -30,6 +32,8 @@ const (
 
 	ServerInfo      RedisInfoCmdType = "server"
 	PersistenceInfo RedisInfoCmdType = "persistence"
+
+	DefaultTimeout = 3 * time.Minute
 )
 
 type ArchitectureType string
@@ -41,6 +45,7 @@ type Redis struct {
 	config       appconfig.Config
 	architecture ArchitectureType
 	mode         BackupMethod
+	opTimeout    time.Duration
 	version      int
 	rdb          *redis.Client
 }
@@ -49,21 +54,34 @@ func (r *Redis) Init(appConfig appconfig.Config) error {
 	r.config = appConfig
 	r.architecture = Standalone
 	r.mode = getBackupMethod(appConfig)
-	r.version = 0 // unknonw
+	if appConfig.QuiesceTimeout != 0 {
+		r.opTimeout = appConfig.QuiesceTimeout
+	} else {
+		r.opTimeout = DefaultTimeout
+	}
+
+	r.version = 0 // unknown version
+
+	log.Log.Info("Redis init...", appConfig.Name, r.String())
+
 	return nil
 }
 
 func (r *Redis) Connect() error {
+	var err error
 	log.Log.Info("Redis connecting...")
 
-	var err error
-	rdb, _ := newRedisClient(r.config)
-	res := rdb.Ping(context.TODO())
-	if res.Err() != nil {
-		return res.Err()
+	if r.rdb != nil {
+		err = r.rdb.Ping(context.TODO()).Err()
+		if err != nil {
+			r.rdb = nil
+		}
 	}
 
-	r.rdb = rdb
+	if r.rdb == nil {
+		r.rdb, _ = newRedisClient(r.config)
+	}
+
 	err = r.getRedisVersion()
 	if err != nil {
 		return err
@@ -82,7 +100,13 @@ func (r *Redis) Connect() error {
 	return nil
 }
 
-func (r *Redis) Quiesce() (*v1alpha1.QuiesceResult, error) {
+func (r *Redis) Prepare() (*v1alpha1.PreservedConfig, error) {
+	log.Log.Info("Redis preparing...")
+	err := r.Connect()
+	if err != nil {
+		return nil, err
+	}
+
 	isAOFEnabled, err := r.isAOFEnabled()
 	if err != nil {
 		return nil, err
@@ -93,6 +117,7 @@ func (r *Redis) Quiesce() (*v1alpha1.QuiesceResult, error) {
 		return nil, err
 	}
 
+	saved := false
 	preserved := make(map[string]string)
 
 	if isAOFEnabled {
@@ -104,30 +129,154 @@ func (r *Redis) Quiesce() (*v1alpha1.QuiesceResult, error) {
 		}
 
 		preserved[string(AutoAOFReWritePercentage)] = fmt.Sprintf("%d", percentage)
+		saved = true
 	}
 
 	if snapshot != "" {
 		preserved[string(Save)] = snapshot
+		saved = true
 	}
 
-	return &v1alpha1.QuiesceResult{
-		Redis: &v1alpha1.RedisResult{
-			QuiescePreservedConfig: preserved,
-		},
-	}, nil
+	if saved {
+		log.Log.Info("Redis prepared", "params", preserved)
+		return &v1alpha1.PreservedConfig{
+			Params: preserved,
+		}, nil
+	}
+
+	log.Log.Info("Redis prepared")
+	return nil, nil
 }
 
-func (r *Redis) Unquiesce() error {
+func (r *Redis) Quiesce() (*v1alpha1.QuiesceResult, error) {
+	var err error
+	isAOFEnabled, err := r.isAOFEnabled()
+	if err != nil {
+		return nil, err
+	}
+
+	if r.mode == AOFOnly && isAOFEnabled {
+		log.Log.Info("disable redis auto aof rewrite")
+		// disable AOF rewrite
+		err = r.disableAutoAOFRewrite()
+		if err != nil {
+			return nil, err
+		}
+
+		log.Log.Info("wait for previous rewrite done")
+		done := false
+		err = wait.PollImmediate(3*time.Second, DefaultTimeout, func() (bool, error) {
+			ongoing, err := r.isAOFRewriteInProgress()
+			if err != nil {
+				return false, err
+			}
+
+			if ongoing {
+				return false, nil
+			}
+			done = true
+			return true, nil
+		})
+
+		if err != nil {
+			return nil, err
+		}
+
+		if !done {
+			return nil, fmt.Errorf("timeout to wait auto aof rewrite done")
+		}
+	}
+
+	if r.mode == Snapshot {
+		log.Log.Info("wait for previous rbd snapshot done")
+		done := false
+		err = wait.PollImmediate(3*time.Second, DefaultTimeout, func() (bool, error) {
+			ongoing, err := r.isRDBBgSaveInProgress()
+			if err != nil {
+				return false, err
+			}
+
+			if ongoing {
+				return false, nil
+			}
+			done = true
+			return true, nil
+		})
+
+		if err != nil {
+			return nil, err
+		}
+
+		if !done {
+			return nil, fmt.Errorf("timeout to wait last bgsave done")
+		}
+
+		log.Log.Info("take rbd snapshot")
+		// bgsave for rbd snapshot
+		lastSaveHandler, err := r.rdb.LastSave(context.TODO()).Result()
+		if err != nil {
+			return nil, err
+		}
+
+		// issue bgsave
+		err = r.rdb.BgSave(context.TODO()).Err()
+		if err != nil {
+			return nil, err
+		}
+
+		log.Log.Info("wait for rbd snapshot done")
+		var newSaveHandler int64
+		err = wait.PollImmediate(3*time.Second, DefaultTimeout, func() (bool, error) {
+			newSaveHandler, err = r.rdb.LastSave(context.TODO()).Result()
+			if err != nil {
+				return false, err
+			}
+
+			if newSaveHandler == lastSaveHandler {
+				return false, nil
+			}
+
+			return true, nil
+		})
+
+		if err != nil {
+			return nil, err
+		}
+
+		if newSaveHandler == lastSaveHandler {
+			return nil, fmt.Errorf("timeout to wait bgsave done")
+		}
+		log.Log.Info("take rbd snapshot done")
+	}
+
+	return nil, nil
+}
+
+func (r *Redis) Unquiesce(prev *v1alpha1.PreservedConfig) error {
+	if prev == nil {
+		return nil
+	}
+
+	// restore original redis settings
+	for k, v := range prev.Params {
+		log.Log.Info("restore redis persistence setting", k, v)
+		_, err := r.rdb.ConfigSet(context.TODO(), k, v).Result()
+		if err != nil {
+			return err
+		}
+	}
 
 	return nil
 }
 
 func (r *Redis) String() string {
-	return fmt.Sprintf("redis instance %s with version: %d, topology: %s, backup method: %s",
+	return fmt.Sprintf("redis instance %s with version: %d, topology: %s, backup method: %s, timeout: %d",
 		r.config.Host,
 		r.version,
 		r.architecture,
-		r.mode)
+		r.mode,
+		r.opTimeout,
+	)
 }
 
 func (r *Redis) getRedisVersion() error {
@@ -227,12 +376,17 @@ func (r *Redis) getAutoAOFRewritePercentage() (int, error) {
 		return -1, fmt.Errorf("invalid result length: %#v from config get %s", v, AutoAOFReWritePercentage)
 	}
 
-	result, ok := v[1].(int)
-	if !ok {
-		return -1, fmt.Errorf("failed to convert result %#v from config get %#v to string", result, v)
+	result, err := strconv.Atoi(v[1].(string))
+	if err != nil {
+		return -1, fmt.Errorf("failed to convert result %#v from config get %#v to string, err: %v", result, v[1], err)
 	}
 
 	return result, nil
+}
+
+func (r *Redis) disableAutoAOFRewrite() error {
+	_, err := r.rdb.ConfigSet(context.TODO(), string(AutoAOFReWritePercentage), "0").Result()
+	return err
 }
 
 func (r *Redis) isAOFRewriteInProgress() (bool, error) {
@@ -244,6 +398,25 @@ func (r *Redis) isAOFRewriteInProgress() (bool, error) {
 	result := extractRedisInfoResult(val, "aof_rewrite_in_progress:")
 	if result == "" {
 		return false, fmt.Errorf("can't get aof_rewrite_in_progress from result %s", val)
+	}
+
+	inprogresFlag, err := strconv.Atoi(result)
+	if err != nil {
+		return false, fmt.Errorf("failed to convert %s to int flag from result %s", result, val)
+	}
+
+	return inprogresFlag == 1, nil
+}
+
+func (r *Redis) isRDBBgSaveInProgress() (bool, error) {
+	val, err := r.rdb.Info(context.TODO(), string(PersistenceInfo)).Result()
+	if err != nil {
+		return false, err
+	}
+
+	result := extractRedisInfoResult(val, "rdb_bgsave_in_progress:")
+	if result == "" {
+		return false, fmt.Errorf("can't get rdb_bgsave_in_progress from result %s", val)
 	}
 
 	inprogresFlag, err := strconv.Atoi(result)
@@ -271,10 +444,10 @@ func extractRedisInfoResult(result string, prefix string) string {
 
 func (r *Redis) IsSupported() bool {
 	if r.version != 7 || r.mode == None || r.architecture != Standalone {
-		return true
+		return false
 	}
 
-	return false
+	return true
 }
 
 func newRedisClient(appConfig appconfig.Config) (*redis.Client, error) {
