@@ -26,11 +26,16 @@ const (
 	QuiesceFromPrimary = "QuiesceFromPrimary"
 )
 
-// mysql param
 const (
+	// mysql param
 	MysqlLockMethod   = "mysql-lock-method"
 	MysqlTableLock    = "table"
 	MysqlInstanceLock = "instance"
+
+	// redis param
+	RedisBackupMethod = "redis-backup-method"
+	RedisBackupByRDB  = "rdb"
+	RedisBackupByAOF  = "aof"
 )
 
 // AppHookSpec defines the desired state of AppHook
@@ -60,6 +65,7 @@ type QuiesceResult struct {
 	Mongo *MongoResult `json:"mongo,omitempty"`
 	Mysql *MysqlResult `json:"mysql,omitempty"`
 	Pg    *PgResult    `json:"pg,omitempty"`
+	Redis *RedisResult `json:"redis,omitempty"`
 }
 
 type MongoResult struct {
@@ -73,13 +79,22 @@ type MysqlResult struct {
 type PgResult struct {
 }
 
+type RedisResult struct {
+}
+
+// PreservedConfig saves the origin params before change by quiesce
+type PreservedConfig struct {
+	Params map[string]string `json:"params,omitempty"`
+}
+
 // AppHookStatus defines the observed state of AppHook
 // +kubebuilder:subresource:status
 type AppHookStatus struct {
-	Phase             string         `json:"phase,omitempty"`
-	ErrMsg            string         `json:"errMsg,omitempty"`
-	QuiescedTimestamp *metav1.Time   `json:"quiescedTimestamp,omitempty"`
-	Result            *QuiesceResult `json:"result,omitempty"`
+	Phase             string           `json:"phase,omitempty"`
+	ErrMsg            string           `json:"errMsg,omitempty"`
+	QuiescedTimestamp *metav1.Time     `json:"quiescedTimestamp,omitempty"`
+	Result            *QuiesceResult   `json:"result,omitempty"`
+	PreservedConfig   *PreservedConfig `json:"preservedConfig,omitempty"`
 }
 
 //+kubebuilder:object:root=true

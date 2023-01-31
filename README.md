@@ -22,6 +22,7 @@ AmberApp is a K8s native framework for application consistency that can work tog
 | 2.  | MongoDB    | n                  | fsync lock                  | lock all DBs in current user, db modify operatrion will hang until unquiesced |
 | 3.  | MySQL      | y                  | FLUSH TABLES WITH READ LOCK | lock all DBs, cannot create new table, insert or modify data until unquiesced |
 |   | MySQL > 8.0      | y                  | LOCK INSTANCE FOR BACKUP | lock current DB, Cannot create, rename or, remove records. Cannot repair, truncate and optimize tables. Can perform DDL operations hat only affect user-created temporary tables. Can create, rename, remove temporary tables. Can create binary log files. |
+| 4.  | Redis >= 7.0      | n                  | - | only `standalone` mode support for now, no impact on CRUD, use `bgsave` for rbd snapshot or disable `auto aof rewrite` before backup to guarantee consistent aof log |
 
 ## Usage
 
@@ -72,13 +73,14 @@ Other backup solution can use CR for API level integration with AmberApp, below 
 
 | Param          | Type                   | Supported values           | Description                                |
 | -------------- | ---------------------- | -------------------------- | ------------------------------------------ |
-| appProvider    | string                 | Postgres / Mongodb / MySql | DB type                                    |
+| appProvider    | string                 | Postgres / Mongodb / MySql / Redis | DB type                                    |
 | endPoint       | string                 | serviceName.namespace      | Endpoint to connect the applicatio service |
 | databases      | []string               | any                        | database name array                        |
 | operationType  | string                 | quiesce / unquiesce        |                                            |
 | timeoutSeconds | \*int32                | >=0                        | timeout of operation                       |
 | secret         | corev1.SecretReference | name: xxx, namespace: xxx  | Secret to access the database              |
-| params         | map[string]string | mysql-lock-method: table mysql-lock-method: instance  | addition parameters for database operation              |
+| params         | map[string]string | mysql-lock-method: table, mysql-lock-method: instance  | additional parameters for Mysql DB operation              |
+|          |  | redis-backup-method: rdb, redis-backup-method: aof  | additional parameters for Redis DB operation              |
 
 #### Status
 

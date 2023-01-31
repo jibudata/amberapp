@@ -17,5 +17,6 @@ type Config struct {
 	Provider           string
 	Operation          string
 	QuiesceFromPrimary bool
+	QuiesceTimeout     time.Duration
 	Params             map[string]string
 }

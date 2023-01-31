@@ -195,6 +195,22 @@ func (r *AppHookReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
+func (r *AppHookReconciler) checkAndGetDBSConfig(instance *v1alpha1.AppHook, mgr *drivermanager.DriverManager) (*v1alpha1.PreservedConfig, error) {
+	// connect to database to check status
+	err := mgr.DBConnect()
+	if err != nil {
+		return nil, fmt.Errorf("failed to connect database for %s, err: %v", instance.Name, err)
+	}
+
+	// add prepare action to save origin DB params before change from quiesce
+	preserved, err := mgr.DBPrepare()
+	if err != nil {
+		return nil, fmt.Errorf("failed to prepare database for %s, err: %v", instance.Name, err)
+	}
+
+	return preserved, nil
+}
+
 func (r *AppHookReconciler) ensureHookOperation(instance *v1alpha1.AppHook) (time.Duration, error) {
 	requeueTime := time.Duration(0)
 
@@ -219,22 +235,24 @@ func (r *AppHookReconciler) ensureHookOperation(instance *v1alpha1.AppHook) (tim
 		instance.Status.Phase = v1alpha1.HookNotReady
 		return requeueTime, err
 	}
+
 	// check operation type
+	var preserved *v1alpha1.PreservedConfig
 	if instance.Spec.OperationType == "" { // new CR
 		instance.Status.Phase = v1alpha1.HookCreated
-		// connect to database to check status
-		err = mgr.DBConnect()
+
+		preserved, err = r.checkAndGetDBSConfig(instance, mgr)
 		if err != nil {
 			log.Log.Error(err, fmt.Sprintf("failed to connect database for %s", instance.Name))
 			instance.Status.Phase = v1alpha1.HookNotReady
 		} else {
-			log.Log.Info(fmt.Sprintf("hook for %s is ready", instance.Name))
+			log.Log.Info(fmt.Sprintf("hook for %s is ready, preserved: %v", instance.Name, *preserved))
 			instance.Status.Phase = v1alpha1.HookReady
+			instance.Status.PreservedConfig = preserved
 		}
 	} else if strings.EqualFold(instance.Spec.OperationType, v1alpha1.QUIESCE) {
 		if instance.Status.Phase != v1alpha1.HookQUIESCED {
-			// connect to database to check status
-			err = mgr.DBConnect()
+			preserved, err = r.checkAndGetDBSConfig(instance, mgr)
 			if err != nil {
 				log.Log.Error(err, fmt.Sprintf("failed to connect database for %s", instance.Name))
 				instance.Status.Phase = v1alpha1.HookNotReady
@@ -243,6 +261,7 @@ func (r *AppHookReconciler) ensureHookOperation(instance *v1alpha1.AppHook) (tim
 				log.Log.Info(fmt.Sprintf("quiesce for %s in progress", instance.Name))
 				result, err := mgr.DBQuiesce()
 				instance.Status.Result = result
+				instance.Status.PreservedConfig = preserved
 				if err != nil {
 					log.Log.Error(err, fmt.Sprintf("failed to quiesce database for %s", instance.Name))
 					instance.Status.Phase = v1alpha1.HookQUIESCEINPROGRESS
@@ -266,7 +285,7 @@ func (r *AppHookReconciler) ensureHookOperation(instance *v1alpha1.AppHook) (tim
 			} else {
 				// unquiesce database
 				log.Log.Info(fmt.Sprintf("unquiesce for %s in progress", instance.Name))
-				err = mgr.DBUnquiesce()
+				err = mgr.DBUnquiesce(instance.Status.PreservedConfig)
 				if err != nil {
 					log.Log.Error(err, fmt.Sprintf("failed to unquiesce database for %s", instance.Name))
 					instance.Status.Phase = v1alpha1.HookUNQUIESCEINPROGRESS

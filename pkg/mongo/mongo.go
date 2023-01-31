@@ -70,6 +70,10 @@ func (mg *MG) Connect() error {
 	return nil
 }
 
+func (mg *MG) Prepare() (*v1alpha1.PreservedConfig, error) {
+	return nil, nil
+}
+
 func (mg *MG) Quiesce() (*v1alpha1.QuiesceResult, error) {
 	var err error
 	var result bson.M
@@ -129,8 +133,10 @@ func (mg *MG) Quiesce() (*v1alpha1.QuiesceResult, error) {
 	return quiResult, nil
 }
 
-func (mg *MG) Unquiesce() error {
+
+func (mg *MG) Unquiesce(prev *v1alpha1.PreservedConfig) error {
 	log.Info("mongodb unquiesce in progress")
+
 	client, err := getMongodbClient(mg.config)
 	if err != nil {
 		return err

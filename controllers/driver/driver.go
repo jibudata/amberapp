@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -15,6 +16,7 @@ import (
 	"github.com/jibudata/amberapp/pkg/mongo"
 	"github.com/jibudata/amberapp/pkg/mysql"
 	"github.com/jibudata/amberapp/pkg/postgres"
+	"github.com/jibudata/amberapp/pkg/redis"
 )
 
 type SupportedDB string
@@ -23,13 +25,15 @@ const (
 	MySQL    SupportedDB = "MySQL"
 	Postgres SupportedDB = "Postgres"
 	MongoDB  SupportedDB = "MongoDB"
+	Redis    SupportedDB = "Redis"
 )
 
 type Database interface {
 	Init(appconfig.Config) error
 	Connect() error
+	Prepare() (*v1alpha1.PreservedConfig, error)
 	Quiesce() (*v1alpha1.QuiesceResult, error)
-	Unquiesce() error
+	Unquiesce(*v1alpha1.PreservedConfig) error
 }
 
 type DriverManager struct {
@@ -56,6 +60,8 @@ func NewManager(k8sclient client.Client, instance *v1alpha1.AppHook, secret *cor
 		CacheManager.db = new(mysql.MYSQL)
 	} else if strings.EqualFold(instance.Spec.AppProvider, string(MongoDB)) { // mongo
 		CacheManager.db = new(mongo.MG)
+	} else if strings.EqualFold(instance.Spec.AppProvider, string(Redis)) { // redis
+		CacheManager.db = new(redis.Redis)
 	} else {
 		CacheManager.NotReady()
 		err = fmt.Errorf("provider %s is not supported", instance.Spec.AppProvider)
@@ -83,6 +89,11 @@ func NewManager(k8sclient client.Client, instance *v1alpha1.AppHook, secret *cor
 		QuiesceFromPrimary: usePrimary,
 		Params:             instance.Spec.Params,
 	}
+
+	if instance.Spec.TimeoutSeconds != nil {
+		CacheManager.appConfig.QuiesceTimeout = time.Duration(*instance.Spec.TimeoutSeconds)
+	}
+
 	err = CacheManager.db.Init(CacheManager.appConfig)
 	return &CacheManager, err
 }
@@ -149,12 +160,16 @@ func (d *DriverManager) DBConnect() error {
 	return d.db.Connect()
 }
 
+func (d *DriverManager) DBPrepare() (*v1alpha1.PreservedConfig, error) {
+	return d.db.Prepare()
+}
+
 func (d *DriverManager) DBQuiesce() (*v1alpha1.QuiesceResult, error) {
 	return d.db.Quiesce()
 }
 
-func (d *DriverManager) DBUnquiesce() error {
-	return d.db.Unquiesce()
+func (d *DriverManager) DBUnquiesce(prev *v1alpha1.PreservedConfig) error {
+	return d.db.Unquiesce(prev)
 }
 
 func equalStr(str1, str2 []string) bool {
