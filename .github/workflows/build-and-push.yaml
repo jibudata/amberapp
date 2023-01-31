@@ -2,7 +2,7 @@ name: Build Images
 on:
   workflow_dispatch:
     inputs:
-      registry:
+      version:
         description: 'tag'
         required: true
         default: 'main-latest'
