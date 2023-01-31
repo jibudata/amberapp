@@ -65,7 +65,7 @@ func NewCommand(client *client.Client) *cobra.Command {
 
 func (q *QuiesceOptions) BindFlags(flags *pflag.FlagSet, c *cobra.Command) {
 	flags.StringVarP(&q.Name, "name", "n", "", "database configration name")
-	c.MarkFlagRequired("name")
+	_ = c.MarkFlagRequired("name")
 	flags.BoolVarP(&q.Wait, "wait", "w", false, "wait for quiescd")
 	//flags.StringVarP(&c.Database, "database", "d", "", "name of the database instance")
 }

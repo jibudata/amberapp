@@ -78,6 +78,10 @@ fmt: ## Run go fmt against code.
 vet: ## Run go vet against code.
 	go vet ./...
 
+.PHONY: lint
+lint: golangci-lint
+	$(golangci-lint) run --timeout=5m
+
 test: manifests generate fmt vet envtest ## Run tests.
 	go test ./... -coverprofile cover.out
 
@@ -147,6 +151,11 @@ ENVTEST = $(shell pwd)/bin/setup-envtest
 envtest: ## Download envtest-setup locally if necessary.
 	$(call go-get-tool,$(ENVTEST),sigs.k8s.io/controller-runtime/tools/setup-envtest@latest)
 	$(ENVTEST) use 1.21
+
+golangci-lint = $(shell pwd)/bin/golangci-lint
+.PHONY: golangci-lint
+golangci-lint: ## Download golangci-lint locally if necessary.
+	$(call go-get-tool,$(golangci-lint),github.com/golangci/golangci-lint/cmd/golangci-lint@v1.50.1)
 
 set-default-ns:
 	cd config/manager && $(KUSTOMIZE) edit set namespace ${DEFAULT_DEPLOY_NS}

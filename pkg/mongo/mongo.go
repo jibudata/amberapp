@@ -133,7 +133,6 @@ func (mg *MG) Quiesce() (*v1alpha1.QuiesceResult, error) {
 	return quiResult, nil
 }
 
-
 func (mg *MG) Unquiesce(prev *v1alpha1.PreservedConfig) error {
 	log.Info("mongodb unquiesce in progress")
 

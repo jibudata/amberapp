@@ -73,17 +73,17 @@ func NewCommand(client *client.Client) *cobra.Command {
 
 func (c *CreateOptions) BindFlags(flags *pflag.FlagSet, command *cobra.Command) {
 	flags.StringVarP(&c.Name, "name", "n", "", "database configration name")
-	command.MarkFlagRequired("name")
+	_ = command.MarkFlagRequired("name")
 	flags.StringVarP(&c.Provider, "app-provider", "a", "", "database provider, e.g., MySQL")
-	command.MarkFlagRequired("app-provider")
+	_ = command.MarkFlagRequired("app-provider")
 	flags.StringVarP(&c.Endpoint, "endpoint", "e", "", "database endpoint, e.g., 'service.namespace', or 'ip:port'")
-	command.MarkFlagRequired("endpoint")
+	_ = command.MarkFlagRequired("endpoint")
 	flags.StringArrayVar(&c.Databases, "databases", nil, "databases created inside the DB")
-	command.MarkFlagRequired("databases")
+	_ = command.MarkFlagRequired("databases")
 	flags.StringVarP(&c.UserName, "username", "u", "", "username of the DB")
-	command.MarkFlagRequired("username")
+	_ = command.MarkFlagRequired("username")
 	flags.StringVarP(&c.Password, "password", "p", "", "password for the DB user")
-	command.MarkFlagRequired("password")
+	_ = command.MarkFlagRequired("password")
 }
 
 func (c *CreateOptions) Validate(command *cobra.Command, kubeclient *client.Client) error {
@@ -145,7 +145,7 @@ func (c *CreateOptions) createSecret(kubeclient *client.Client, secretName, name
 		return true, nil
 	})
 
-	return nil
+	return err
 }
 
 func (c *CreateOptions) waitUntilReady(kubeclient *client.Client, namespace string) (error, bool) {
