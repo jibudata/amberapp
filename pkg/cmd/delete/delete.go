@@ -57,7 +57,7 @@ func NewCommand(client *client.Client) *cobra.Command {
 
 func (d *DeleteOptions) BindFlags(flags *pflag.FlagSet, command *cobra.Command) {
 	flags.StringVarP(&d.Name, "name", "n", "", "database configration name")
-	command.MarkFlagRequired("name")
+	_ = command.MarkFlagRequired("name")
 }
 
 func (d *DeleteOptions) Validate(command *cobra.Command, kubeclient *client.Client) error {

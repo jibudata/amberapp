@@ -108,9 +108,9 @@ type DemoOptions struct {
 
 func (d *DemoOptions) BindFlags(flags *pflag.FlagSet, c *cobra.Command) {
 	flags.StringVarP(&d.HookName, "name", "n", "", "database hook name")
-	c.MarkFlagRequired("name")
+	_ = c.MarkFlagRequired("name")
 	flags.StringVarP(&d.Database, "database", "d", "", "name of the database instance")
-	c.MarkFlagRequired("database")
+	_ = c.MarkFlagRequired("database")
 	flags.StringVarP(&d.TableName, "table", "t", "employees", "name of the table as data source")
 	flags.IntVarP(&d.NumLoops, "count", "c", 10, "number of loops to execute")
 	flags.StringVarP(&d.Operation, "operation", "o", "replicate", "supported operation, onyl replicate is supported right now")
@@ -140,6 +140,7 @@ func (d *DemoOptions) Validate(command *cobra.Command, kubeclient *client.Client
 func queryAndInsert(db *sql.DB, source, target string) error {
 	query := fmt.Sprintf("SELECT * FROM %s", source)
 	res, err := db.Query(query)
+	// nolint: staticcheck
 	defer res.Close()
 
 	if err != nil {
@@ -320,7 +321,10 @@ func (d *DemoOptions) dbStress(kubeclient *client.Client, hook *v1alpha1.AppHook
 		if err != nil {
 			return err
 		}
-		tableReplicateLoop(dbConfig, d.NumLoops, d.TableName)
+		err = tableReplicateLoop(dbConfig, d.NumLoops, d.TableName)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }

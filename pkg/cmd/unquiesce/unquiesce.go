@@ -64,7 +64,7 @@ func NewCommand(client *client.Client) *cobra.Command {
 
 func (u *UnquiesceOptions) BindFlags(flags *pflag.FlagSet, c *cobra.Command) {
 	flags.StringVarP(&u.Name, "name", "n", "", "database configration name")
-	c.MarkFlagRequired("name")
+	_ = c.MarkFlagRequired("name")
 	//flags.StringVarP(&c.Database, "database", "d", "", "name of the database instance")
 }
 
