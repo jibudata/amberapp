@@ -32,6 +32,7 @@ const (
 
 	ServerInfo      RedisInfoCmdType = "server"
 	PersistenceInfo RedisInfoCmdType = "persistence"
+	ClusterInfo     RedisInfoCmdType = "cluster"
 
 	DefaultTimeout = 3 * time.Minute
 )
@@ -44,6 +45,8 @@ type RedisInfoCmdType string
 type Redis struct {
 	config       appconfig.Config
 	architecture ArchitectureType
+	masters      []string
+	slaves       []string
 	mode         BackupMethod
 	opTimeout    time.Duration
 	version      int
@@ -52,18 +55,11 @@ type Redis struct {
 
 func (r *Redis) Init(appConfig appconfig.Config) error {
 	r.config = appConfig
-	r.architecture = Standalone
 	r.mode = getBackupMethod(appConfig)
-	if appConfig.QuiesceTimeout != 0 {
-		r.opTimeout = appConfig.QuiesceTimeout
-	} else {
-		r.opTimeout = DefaultTimeout
-	}
-
+	r.opTimeout = getQuiesceTimeout(appConfig)
 	r.version = 0 // unknown version
 
 	log.Log.Info("Redis init...", appConfig.Name, r.String())
-
 	return nil
 }
 
@@ -79,7 +75,7 @@ func (r *Redis) Connect() error {
 	}
 
 	if r.rdb == nil {
-		r.rdb, _ = newRedisClient(r.config)
+		r.rdb, _ = r.newRedisClient()
 	}
 
 	err = r.getRedisVersion()
@@ -90,6 +86,39 @@ func (r *Redis) Connect() error {
 	err = r.getRedisMode()
 	if err != nil {
 		return err
+	}
+
+	if r.architecture == Cluster {
+		enabled, err := r.isRedisClusterEnabled()
+		if err != nil {
+			return err
+		}
+
+		if enabled {
+			ready, clusterSize, clusterNodes, err := r.getClusterInfo()
+			if err != nil {
+				return err
+			}
+
+			if !ready {
+				return fmt.Errorf("cluster isn't ready yet, fail this operation")
+			}
+
+			masters, slaves, err := r.getClusterNodes()
+			if err != nil {
+				return err
+			}
+			r.masters = masters
+			r.slaves = slaves
+
+			if len(r.masters)+len(r.slaves) != clusterNodes {
+				return fmt.Errorf("inconsistent cluster nodes, master:%d, slaves:%d, known_nodes:%d", len(r.masters), len(r.slaves), clusterNodes)
+			}
+
+			if len(r.masters) != clusterSize {
+				return fmt.Errorf("inconsistent cluster size, master:%d, cluster_size:%d", len(r.masters), clusterSize)
+			}
+		}
 	}
 
 	if !r.IsSupported() {
@@ -292,10 +321,18 @@ func (r *Redis) getRedisVersion() error {
 
 	log.Log.Info("getRedisVersion", "version", version)
 
-	if semver.Compare("v"+version, "v7.0.0") >= 0 && semver.Compare("v"+version, "v8.0.0") == -1 {
-		r.version = 7
+	// redis >= v2.4 has `redis_version`, `redis_mode` and `cluster_enabled` sections
+	if semver.Compare("v"+version, "v2.4") >= 0 && semver.Compare("v"+version, "v8.0.0") == -1 {
+		items := strings.Split(version, ".")
+		if len(items) == 0 {
+			return fmt.Errorf("unexpected redis version format: %s", version)
+		}
+		r.version, err = strconv.Atoi(items[0])
+		if err != nil {
+			return fmt.Errorf("failed to parse redis version, err=%s", err)
+		}
 	} else {
-		r.version = 0
+		return fmt.Errorf("unsupported redis version: %s", version)
 	}
 
 	return nil
@@ -326,6 +363,69 @@ func (r *Redis) getRedisMode() error {
 	}
 
 	return nil
+}
+
+func (r *Redis) isRedisClusterEnabled() (bool, error) {
+	val, err := r.rdb.Info(context.TODO(), string(ClusterInfo)).Result()
+	if err != nil {
+		return false, err
+	}
+
+	enabled := extractRedisInfoResult(val, "cluster_enabled")
+	flag, err := strconv.Atoi(enabled)
+	if err != nil {
+		return false, fmt.Errorf("failed to parse cluster_enabled, err:%s, raw:%s", err, val)
+	}
+
+	return flag != 0, nil
+}
+
+// get redis cluster state, cluster size, known nodes
+func (r *Redis) getClusterInfo() (bool, int, int, error) {
+
+	res, err := r.rdb.ClusterInfo(context.TODO()).Result()
+	if err != nil {
+		return false, 0, 0, err
+	}
+
+	state := extractRedisInfoResult(res, "cluster_state")
+	size, err := strconv.Atoi(extractRedisInfoResult(res, "cluster_size"))
+	if err != nil {
+		return false, 0, 0, fmt.Errorf("invalid cluster size, err:%s, raw:%s", err, res)
+	}
+
+	nodes, err := strconv.Atoi(extractRedisInfoResult(res, "cluster_known_nodes"))
+	if err != nil {
+		return false, 0, 0, fmt.Errorf("invalid cluster nodes, err:%s, raw:%s", err, res)
+	}
+
+	return state == "ok", size, nodes, nil
+}
+
+// return master nodes and slave nodes
+func (r *Redis) getClusterNodes() ([]string, []string, error) {
+	var masters []string
+	var slaves []string
+	val, err := r.rdb.ClusterNodes(context.TODO()).Result()
+	if err != nil {
+		return masters, slaves, err
+	}
+
+	rows := strings.Split(val, "\n")
+
+	for _, row := range rows {
+		items := strings.Fields(row)
+		if len(items) >= 3 {
+			if strings.Contains(items[2], "master") {
+				masters = append(masters, items[1])
+			} else {
+				slaves = append(slaves, items[1])
+			}
+		}
+	}
+
+	log.Log.Info("extractRedisNodes", "masters", masters, "slaves", slaves)
+	return masters, slaves, nil
 }
 
 func (r *Redis) isAOFEnabled() (bool, error) {
@@ -443,30 +543,28 @@ func extractRedisInfoResult(result string, prefix string) string {
 }
 
 func (r *Redis) IsSupported() bool {
-	if r.version != 7 || r.mode == None || r.architecture != Standalone {
+	if r.mode == None || (r.architecture != Standalone && r.architecture != Cluster) {
 		return false
 	}
 
 	return true
 }
 
-func newRedisClient(appConfig appconfig.Config) (*redis.Client, error) {
+func (r *Redis) newRedisClient() (*redis.Client, error) {
 
-	// TODO: add redis cluster mode support
 	// TODO: add TLS support
 	rdb := redis.NewClient(&redis.Options{
-		Addr:     appConfig.Host,
-		Password: appConfig.Password,
+		Addr:     r.config.Host,
+		Password: r.config.Password,
 		DB:       0, // use default DB
 	})
-
 	return rdb, nil
 }
 
 func getBackupMethod(appConfig appconfig.Config) BackupMethod {
 	if appConfig.Params == nil {
-		// no special action
-		return None
+		// by default, trigger rdb bgsave
+		return Snapshot
 	}
 
 	method, ok := appConfig.Params[v1alpha1.RedisBackupMethod]
@@ -481,5 +579,13 @@ func getBackupMethod(appConfig appconfig.Config) BackupMethod {
 		}
 	}
 
-	return None
+	return Snapshot
+}
+
+func getQuiesceTimeout(appConfig appconfig.Config) time.Duration {
+	if appConfig.QuiesceTimeout != 0 {
+		return appConfig.QuiesceTimeout
+	}
+
+	return DefaultTimeout
 }

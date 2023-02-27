@@ -36,6 +36,10 @@ const (
 	RedisBackupMethod = "redis-backup-method"
 	RedisBackupByRDB  = "rdb"
 	RedisBackupByAOF  = "aof"
+
+	RedisArchitectureType = "redis-architecture-type"
+	RedisStandalone       = "standalone"
+	RedisCluster          = "cluster"
 )
 
 // AppHookSpec defines the desired state of AppHook
