@@ -9,27 +9,26 @@ AmberApp is a K8s native framework for application consistency that can work tog
 1. Clone the repo
 
    `git clone git@github.com:jibudata/amberapp.git`
-
 2. Enter the repo and run
 
    `kubectl apply -f deploy`
 
 ## Supported databases
 
-| #   | Type       | Databases required | lock method                 | description                                                                   |
-| --- | ---------- | ------------------ | --------------------------- | ----------------------------------------------------------------------------- |
-| 1.  | PostgreSQL | y                  | pg_start_backup             | no impact on CRUD                                                             |
-| 2.  | MongoDB    | n                  | fsync lock                  | lock all DBs in current user, db modify operatrion will hang until unquiesced |
-| 3.  | MySQL      | y                  | FLUSH TABLES WITH READ LOCK | lock all DBs, cannot create new table, insert or modify data until unquiesced |
-|   | MySQL > 8.0      | y                  | LOCK INSTANCE FOR BACKUP | lock current DB, Cannot create, rename or, remove records. Cannot repair, truncate and optimize tables. Can perform DDL operations hat only affect user-created temporary tables. Can create, rename, remove temporary tables. Can create binary log files. |
-| 4.  | Redis >= 7.0      | n                  | - | only `standalone` mode support for now, no impact on CRUD, use `bgsave` for rbd snapshot or disable `auto aof rewrite` before backup to guarantee consistent aof log |
+| #  | Type         | Databases required | lock method                 | description                                                                                                                                                                                                                                                 |
+| -- | ------------ | ------------------ | --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1. | PostgreSQL   | y                  | pg_start_backup             | no impact on CRUD                                                                                                                                                                                                                                           |
+| 2. | MongoDB      | n                  | fsync lock                  | lock all DBs in current user, db modify operatrion will hang until unquiesced                                                                                                                                                                               |
+| 3. | MySQL        | y                  | FLUSH TABLES WITH READ LOCK | lock all DBs, cannot create new table, insert or modify data until unquiesced                                                                                                                                                                               |
+|    | MySQL > 8.0  | y                  | LOCK INSTANCE FOR BACKUP    | lock current DB, Cannot create, rename or, remove records. Cannot repair, truncate and optimize tables. Can perform DDL operations hat only affect user-created temporary tables. Can create, rename, remove temporary tables. Can create binary log files. |
+| 4. | Redis >= 2.4 | n                  | -                           | `standalone` and `cluster` mode support for now, no impact on CRUD, use `bgsave` for rbd snapshot or disable `auto aof rewrite` before backup to guarantee consistent aof log                                                                     |
 
 ## Usage
 
 ### CLI example
 
 1. Clone repo, do install as above, run `make` to build binaries
-2. Deploy an example application: wordpress, refer to <https://github.com/jibutech/docs/tree/main/examples/workload/wordpress>
+2. Deploy an example application: wordpress, refer to [https://github.com/jibutech/docs/tree/main/examples/workload/wordpress](https://github.com/jibutech/docs/tree/main/examples/workload/wordpress)
 3. Create an hook to MySQL database. NOTE: use `WATCH_NAMESPACE` to specify the namespace where amberapp operator is installed.
 
    ```bash
@@ -40,7 +39,6 @@ AmberApp is a K8s native framework for application consistency that can work tog
    NAME        AGE   CREATED AT             PHASE
    test-hook   8s    2021-10-20T12:26:28Z   Ready
    ```
-
 4. Quiesce DB:
 
    ```bash
@@ -49,7 +47,6 @@ AmberApp is a K8s native framework for application consistency that can work tog
    # kubectl get apphooks.ys.jibudata.com -n amberapp-system test-hook
    test-hook   18m   2021-10-20T12:26:28Z   Quiesced
    ```
-
 5. Unquiesce DB:
 
    ```bash
@@ -58,7 +55,6 @@ AmberApp is a K8s native framework for application consistency that can work tog
    # kubectl get apphooks.ys.jibudata.com -n amberapp-system test-hook
    test-hook   18m   2021-10-20T12:26:28Z   Unquiesced
    ```
-
 6. Delete hook:
 
    ```bash
@@ -71,16 +67,16 @@ Other backup solution can use CR for API level integration with AmberApp, below 
 
 #### CR spec
 
-| Param          | Type                   | Supported values           | Description                                |
-| -------------- | ---------------------- | -------------------------- | ------------------------------------------ |
-| appProvider    | string                 | Postgres / Mongodb / MySql / Redis | DB type                                    |
-| endPoint       | string                 | serviceName.namespace      | Endpoint to connect the applicatio service |
-| databases      | []string               | any                        | database name array                        |
-| operationType  | string                 | quiesce / unquiesce        |                                            |
-| timeoutSeconds | \*int32                | >=0                        | timeout of operation                       |
-| secret         | corev1.SecretReference | name: xxx, namespace: xxx  | Secret to access the database              |
-| params         | map[string]string | mysql-lock-method: table, mysql-lock-method: instance  | additional parameters for Mysql DB operation              |
-|          |  | redis-backup-method: rdb, redis-backup-method: aof  | additional parameters for Redis DB operation              |
+| Param          | Type                   | Supported values                                      | Description                                  |
+| -------------- | ---------------------- | ----------------------------------------------------- | -------------------------------------------- |
+| appProvider    | string                 | Postgres / Mongodb / MySql / Redis                    | DB type                                      |
+| endPoint       | string                 | serviceName.namespace                                 | Endpoint to connect the applicatio service   |
+| databases      | []string               | any                                                   | database name array                          |
+| operationType  | string                 | quiesce / unquiesce                                   |                                              |
+| timeoutSeconds | \*int32                | >=0                                                   | timeout of operation                         |
+| secret         | corev1.SecretReference | name: xxx, namespace: xxx                             | Secret to access the database                |
+| params         | map[string]string      | mysql-lock-method: table, mysql-lock-method: instance | additional parameters for Mysql DB operation |
+|                |                        | redis-backup-method: rdb, redis-backup-method: aof    | additional parameters for Redis DB operation |
 
 #### Status
 
@@ -101,19 +97,16 @@ Other backup solution can use CR for API level integration with AmberApp, below 
    ```bash
    make generate-all -e VERSION=0.1.0
    ```
-
 2. build docker image
 
    ```bash
    make docker-build -e VERSION=0.1.0
    ```
-
    multiple arch image
 
    ```bash
    make docker-pushx -e VERSION=0.1.0
    ```
-
 3. deploy
 
    ```bash
