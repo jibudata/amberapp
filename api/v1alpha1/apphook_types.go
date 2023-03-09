@@ -27,19 +27,17 @@ const (
 )
 
 const (
+	// common params
+	LockMethod   = "lock-method"
+	BackupMethod = "backup-method"
+
 	// mysql param
-	MysqlLockMethod   = "mysql-lock-method"
 	MysqlTableLock    = "table"
 	MysqlInstanceLock = "instance"
 
 	// redis param
-	RedisBackupMethod = "redis-backup-method"
-	RedisBackupByRDB  = "rdb"
-	RedisBackupByAOF  = "aof"
-
-	RedisArchitectureType = "redis-architecture-type"
-	RedisStandalone       = "standalone"
-	RedisCluster          = "cluster"
+	RedisBackupMethodByRDB = "rdb"
+	RedisBackupMethodByAOF = "aof"
 )
 
 // AppHookSpec defines the desired state of AppHook

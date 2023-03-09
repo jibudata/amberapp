@@ -113,7 +113,7 @@ func (m *MYSQL) getLockCmd() string {
 		return TableLockCmd
 	}
 
-	lockMethod, ok := m.config.Params[amberappApi.MysqlLockMethod]
+	lockMethod, ok := m.config.Params[amberappApi.LockMethod]
 	if ok {
 		switch lockMethod {
 		case amberappApi.MysqlTableLock:
@@ -134,7 +134,7 @@ func (m *MYSQL) getUnLockCmd() string {
 		return TableUnLockCmd
 	}
 
-	lockMethod, ok := m.config.Params[amberappApi.MysqlLockMethod]
+	lockMethod, ok := m.config.Params[amberappApi.LockMethod]
 	if ok {
 		switch lockMethod {
 		case amberappApi.MysqlTableLock:
