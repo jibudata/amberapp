@@ -246,7 +246,11 @@ func (r *AppHookReconciler) ensureHookOperation(instance *v1alpha1.AppHook) (tim
 			log.Log.Error(err, fmt.Sprintf("failed to connect database for %s", instance.Name))
 			instance.Status.Phase = v1alpha1.HookNotReady
 		} else {
-			log.Log.Info(fmt.Sprintf("hook for %s is ready, preserved: %v", instance.Name, *preserved))
+			if preserved != nil {
+				log.Log.Info(fmt.Sprintf("hook for %s is ready, preserved: %v", instance.Name, *preserved))
+			} else {
+				log.Log.Info(fmt.Sprintf("hook for %s is ready", instance.Name))
+			}
 			instance.Status.Phase = v1alpha1.HookReady
 			instance.Status.PreservedConfig = preserved
 		}
